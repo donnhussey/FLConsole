@@ -32,6 +32,7 @@ public sealed class XmlRpcRequest
             int i => new XmlRpcIntValue { Text = i },
             bool b => new XmlRpcBooleanValue { Text = b },
             double d => new XmlRpcDoubleValue { Text = d },
+            byte[] bytes => new XmlRpcBase64Value { Bytes = bytes },
             IEnumerable<object?> enumerable => new XmlRpcArrayValue
             {
                 Values = enumerable.Select(CreateValueNode).Where(item => item is not null).Cast<XmlRpcValue>().ToList()

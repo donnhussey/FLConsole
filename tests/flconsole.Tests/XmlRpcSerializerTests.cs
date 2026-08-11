@@ -1,4 +1,5 @@
 using System.Xml.Linq;
+using flconsole;
 using flconsole.Models;
 using Xunit;
 
@@ -199,4 +200,5 @@ public class XmlRpcSerializerTests
         Assert.Equal("hello", XmlRpcValueHelper.FormatValue("hello"));
         Assert.Equal("[1,2,3]", XmlRpcValueHelper.FormatValue(new object?[] { 1, 2, 3 }));
     }
+
 }

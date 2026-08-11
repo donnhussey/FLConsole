@@ -9,6 +9,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "flconsole.Tests", "tests\flconsole.Tests\flconsole.Tests.csproj", "{CDD7F356-045F-469E-86B2-706F3A6A2261}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "flconsole.run", "flconsole.run.csproj", "{AC25386A-3008-46E9-B697-D393774E73FD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -43,6 +45,18 @@ Global
 		{CDD7F356-045F-469E-86B2-706F3A6A2261}.Release|x64.Build.0 = Release|Any CPU
 		{CDD7F356-045F-469E-86B2-706F3A6A2261}.Release|x86.ActiveCfg = Release|Any CPU
 		{CDD7F356-045F-469E-86B2-706F3A6A2261}.Release|x86.Build.0 = Release|Any CPU
+		{AC25386A-3008-46E9-B697-D393774E73FD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AC25386A-3008-46E9-B697-D393774E73FD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AC25386A-3008-46E9-B697-D393774E73FD}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{AC25386A-3008-46E9-B697-D393774E73FD}.Debug|x64.Build.0 = Debug|Any CPU
+		{AC25386A-3008-46E9-B697-D393774E73FD}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{AC25386A-3008-46E9-B697-D393774E73FD}.Debug|x86.Build.0 = Debug|Any CPU
+		{AC25386A-3008-46E9-B697-D393774E73FD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AC25386A-3008-46E9-B697-D393774E73FD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AC25386A-3008-46E9-B697-D393774E73FD}.Release|x64.ActiveCfg = Release|Any CPU
+		{AC25386A-3008-46E9-B697-D393774E73FD}.Release|x64.Build.0 = Release|Any CPU
+		{AC25386A-3008-46E9-B697-D393774E73FD}.Release|x86.ActiveCfg = Release|Any CPU
+		{AC25386A-3008-46E9-B697-D393774E73FD}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
