@@ -1,0 +1,14 @@
+/home/donn/flconsole/flconsole/bin/Debug/net10.0/flconsole
+/home/donn/flconsole/flconsole/bin/Debug/net10.0/flconsole.deps.json
+/home/donn/flconsole/flconsole/bin/Debug/net10.0/flconsole.runtimeconfig.json
+/home/donn/flconsole/flconsole/bin/Debug/net10.0/flconsole.dll
+/home/donn/flconsole/flconsole/bin/Debug/net10.0/flconsole.pdb
+/home/donn/flconsole/flconsole/obj/Debug/net10.0/flconsole.GeneratedMSBuildEditorConfig.editorconfig
+/home/donn/flconsole/flconsole/obj/Debug/net10.0/flconsole.AssemblyInfoInputs.cache
+/home/donn/flconsole/flconsole/obj/Debug/net10.0/flconsole.AssemblyInfo.cs
+/home/donn/flconsole/flconsole/obj/Debug/net10.0/flconsole.csproj.CoreCompileInputs.cache
+/home/donn/flconsole/flconsole/obj/Debug/net10.0/flconsole.dll
+/home/donn/flconsole/flconsole/obj/Debug/net10.0/refint/flconsole.dll
+/home/donn/flconsole/flconsole/obj/Debug/net10.0/flconsole.pdb
+/home/donn/flconsole/flconsole/obj/Debug/net10.0/flconsole.genruntimeconfig.cache
+/home/donn/flconsole/flconsole/obj/Debug/net10.0/ref/flconsole.dll
