@@ -9,15 +9,20 @@ public static class ServiceCollectionExtensions
     private const int DefaultPort = 7362;
     private const string DefaultPromptPrefix = "flconsole > ";
     private const int DefaultMaxLines = 500;
+    private const int DefaultScanSettleDelayMilliseconds = ScanCommandSettings.DefaultSettleDelayMilliseconds;
 
     public static IServiceCollection AddFlConsole(this IServiceCollection services, IConfiguration configuration)
     {
         var (host, port) = ReadXmlRpcSettings(configuration);
         var connectionSettings = new XmlRpcConnectionSettings(host, port);
         var consoleUiSettings = new ConsoleUiSettings(DefaultPromptPrefix, DefaultMaxLines);
+        var scanCommandSettings = ReadScanCommandSettings(configuration);
+        var identifyCommandSettings = ReadIdentifyCommandSettings(configuration);
 
         services.AddSingleton(connectionSettings);
         services.AddSingleton(consoleUiSettings);
+        services.AddSingleton(scanCommandSettings);
+        services.AddSingleton(identifyCommandSettings);
         services.AddSingleton(provider =>
         {
             var settings = provider.GetRequiredService<XmlRpcConnectionSettings>();
@@ -36,10 +41,13 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IPromptState>(provider => provider.GetRequiredService<ConsolePromptHandler>());
         services.AddSingleton<CommandDisplayRunner>();
         services.AddSingleton<ICommand<IReadOnlyList<string>>, HelpCommand>();
+        services.AddSingleton<ICommand<IReadOnlyList<string>>, ClearCommand>();
         services.AddSingleton<ICommand<IReadOnlyList<string>>, QuitCommand>();
+        services.AddSingleton<ICommand<IReadOnlyList<string>>, AdjustCommand>();
         services.AddSingleton<ICommand<IReadOnlyList<string>>, SetCommand>();
         services.AddSingleton<ICommand<IReadOnlyList<string>>, ScanCommand>();
         services.AddSingleton<ICommand<IReadOnlyList<string>>, MonitorCommand>();
+        services.AddSingleton<ICommand<IReadOnlyList<string>>, IdentifyCommand>();
         services.AddSingleton<ICommand<IReadOnlyList<string>>, MethodCallCommand>();
         services.AddSingleton<ICommandResolver<IReadOnlyList<string>>, CommandResolver<IReadOnlyList<string>>>();
         services.AddSingleton<FlConsoleShellController>();
@@ -57,5 +65,28 @@ public static class ServiceCollectionExtensions
         return (
             string.IsNullOrWhiteSpace(host) ? DefaultHost : host,
             int.TryParse(portText, out var port) ? port : DefaultPort);
+    }
+
+    private static ScanCommandSettings ReadScanCommandSettings(IConfiguration configuration)
+    {
+        var settleDelayText = configuration["FlConsole:ScanSettleDelayMilliseconds"];
+        var settleDelayMilliseconds = int.TryParse(settleDelayText, out var parsedDelay) && parsedDelay >= 0
+            ? parsedDelay
+            : DefaultScanSettleDelayMilliseconds;
+
+        return new ScanCommandSettings(settleDelayMilliseconds);
+    }
+
+    private static IdentifyCommandSettings ReadIdentifyCommandSettings(IConfiguration configuration)
+    {
+        var configuredModems = configuration
+            .GetSection("FlConsole:IdentifyModems")
+            .GetChildren()
+            .Select(section => section.Value)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Cast<string>()
+            .ToList();
+
+        return new IdentifyCommandSettings(configuredModems);
     }
 }

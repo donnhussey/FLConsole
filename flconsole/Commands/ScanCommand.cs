@@ -1,102 +1,229 @@
 using System.Globalization;
 using System.IO;
-using System.Text;
 using flconsole.Models;
 
 namespace flconsole.Commands;
 
-public sealed class ScanCommand(XmlRpcClient client) : ICommand<IReadOnlyList<string>>
+public sealed class ScanCommand(XmlRpcClient client, ScanCommandSettings? settings = null) : ICommand<IReadOnlyList<string>>
 {
-    private const double DefaultScanStepHz = 50;
+    private static readonly NumberFormatInfo DotGroupedIntegerFormat = new()
+    {
+        NumberGroupSeparator = ".",
+        NumberDecimalDigits = 0
+    };
+
+    private const double MinCarrierOffsetHz = 1;
+    private const double MaxCarrierOffsetHz = 3000;
+    private const double LowerCarrierOffsetHz = 100;
+    private const double CarrierStepHz = 100;
+    private const double UpperCarrierOffsetHz = 2900;
     private const double DefaultQualityThreshold = 20;
-    private static readonly TimeSpan SweepRepeatInterval = TimeSpan.FromSeconds(3);
-    private static readonly TimeSpan FrequencySettleDelay = TimeSpan.FromMilliseconds(250);
+    private const string ScanModemName = "CW";
+    private readonly TimeSpan _frequencySettleDelay = TimeSpan.FromMilliseconds(
+        Math.Max(0, settings?.SettleDelayMilliseconds ?? ScanCommandSettings.DefaultSettleDelayMilliseconds));
 
     public string CommandName => "scan";
-    public bool Repeat => true;
-    public TimeSpan RepeatInterval => SweepRepeatInterval;
+    public bool Repeat => false;
+    public TimeSpan RepeatInterval => TimeSpan.Zero;
     public bool StopsShell => false;
 
     public async Task<Stream> ExecuteAsync(IReadOnlyList<string> request)
     {
-        if (request.Count < 2
-            || request.Count > 4
-            || !double.TryParse(request[0], NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var firstBound)
-            || !double.TryParse(request[1], NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var secondBound)
-            || !TryParseOptionalPositiveDouble(request, 2, DefaultScanStepHz, out var scanStepHz)
-            || !TryParseOptionalPositiveDouble(request, 3, DefaultQualityThreshold, out var qualityThreshold))
+        if (!TryParseRequest(request, out var qualityThreshold, out var debugMode))
         {
-            return CommandTextStream.Create("Usage: scan <lower-frequency> <upper-frequency> [step-hz] [quality-threshold]");
+            return CommandTextStream.Create("Usage: scan [quality-threshold] [debug]");
         }
 
-        var lowerBound = Math.Min(firstBound, secondBound);
-        var upperBound = Math.Max(firstBound, secondBound);
-
-        try
+        return CommandTextStream.Create(async output =>
         {
-            var output = new StringBuilder();
+            await output.WriteAsync(Environment.NewLine);
 
-            await client.SendAsync(new XmlRpcRequest
+            ScanSessionState? originalState = null;
+
+            try
             {
-                MethodName = "rig.take_control",
-                Parameters = []
-            });
+                await TakeControlAsync();
+                originalState = await CaptureOriginalStateAsync();
+                await SetModemByNameAsync(ScanModemName);
+                await Task.Delay(_frequencySettleDelay);
 
-            for (var frequency = lowerBound; frequency <= upperBound; frequency += scanStepHz)
+                await SweepCarrierOffsetsAsync(output, originalState.DialFrequencyHz, qualityThreshold, debugMode);
+
+                await output.WriteAsync("Done.");
+            }
+            finally
             {
-                await client.SendAsync(new XmlRpcRequest
+                if (originalState is not null)
                 {
-                    MethodName = "rig.set_frequency",
-                    Parameters = [frequency]
-                });
-
-                await Task.Delay(FrequencySettleDelay);
-
-                var quality = await GetDoubleValueAsync("modem.get_quality");
-                if (quality > qualityThreshold)
-                {
-                    output.AppendLine($"Activity at {frequency.ToString("0.###", CultureInfo.InvariantCulture)} Hz (quality={quality.ToString("0.###", CultureInfo.InvariantCulture)})");
+                    await RestoreOriginalStateAsync(originalState);
                 }
             }
+        });
+    }
 
-            return CommandTextStream.Create(output.ToString().TrimEnd());
-        }
-        catch (Exception ex)
+    private async Task TakeControlAsync()
+    {
+        await SendRequestAsync("rig.take_control");
+    }
+
+    private async Task<ScanSessionState> CaptureOriginalStateAsync()
+    {
+        var modemName = await GetStringValueAsync("modem.get_name");
+        var dialFrequency = await GetDoubleValueAsync("rig.get_frequency");
+        var carrierOffset = await GetDoubleValueAsync("modem.get_carrier");
+        return new ScanSessionState(modemName, dialFrequency, carrierOffset);
+    }
+
+    private async Task RestoreOriginalStateAsync(ScanSessionState state)
+    {
+        if (!string.IsNullOrWhiteSpace(state.ModemName))
         {
-            return CommandTextStream.Create($"Error: {ex.Message}");
+            await TrySendRequestAsync("modem.set_by_name", state.ModemName);
+        }
+
+        await TrySendRequestAsync("rig.set_frequency", state.DialFrequencyHz);
+
+        if (IsCarrierOffsetInRange(state.CarrierOffsetHz))
+        {
+            await TrySendRequestAsync("modem.set_carrier", ToCarrierOffsetInt(state.CarrierOffsetHz));
         }
     }
 
-    private static bool TryParseOptionalPositiveDouble(IReadOnlyList<string> request, int index, double defaultValue, out double value)
+    private async Task SetModemByNameAsync(string modemName)
     {
-        if (request.Count <= index)
-        {
-            value = defaultValue;
-            return true;
-        }
+        await SendRequestAsync("modem.set_by_name", modemName);
+    }
 
-        if (!double.TryParse(request[index], NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out value))
+    private async Task SweepCarrierOffsetsAsync(CommandStreamBuffer output, double dialFrequency, double qualityThreshold, bool debugMode)
+    {
+        for (var carrierOffset = LowerCarrierOffsetHz; carrierOffset <= UpperCarrierOffsetHz; carrierOffset += CarrierStepHz)
+        {
+            var validCarrierOffset = EnsureValidCarrierOffset(carrierOffset);
+            await SendRequestAsync("modem.set_carrier", ToCarrierOffsetInt(validCarrierOffset));
+
+            await Task.Delay(_frequencySettleDelay);
+
+            if (debugMode)
+            {
+                var carrierReadback = EnsureValidCarrierOffset(await GetDoubleValueAsync("modem.get_carrier"));
+                await output.WriteLineAsync($"Carrier requested={validCarrierOffset.ToString("0.###", CultureInfo.InvariantCulture)} Hz readback={carrierReadback.ToString("0.###", CultureInfo.InvariantCulture)} Hz");
+            }
+
+            var quality = await GetDoubleValueAsync("modem.get_quality");
+            var reportedFrequency = dialFrequency + validCarrierOffset;
+            if (debugMode)
+            {
+                await output.WriteLineAsync($"Quality at {FormatFrequencyWithDotSeparators(reportedFrequency)} Hz: {quality.ToString("0.######", CultureInfo.InvariantCulture)}");
+            }
+
+            if (quality > qualityThreshold)
+            {
+                await output.WriteLineAsync($"Activity at {FormatFrequencyWithDotSeparators(reportedFrequency)} Hz (quality={quality.ToString("0.###", CultureInfo.InvariantCulture)})");
+            }
+        }
+    }
+
+    private static string FormatFrequencyWithDotSeparators(double frequency)
+    {
+        var roundedFrequency = Math.Round(frequency, MidpointRounding.AwayFromZero);
+        return roundedFrequency.ToString("N0", DotGroupedIntegerFormat);
+    }
+
+    private static bool TryParseRequest(IReadOnlyList<string> request, out double qualityThreshold, out bool debugMode)
+    {
+        qualityThreshold = DefaultQualityThreshold;
+        debugMode = false;
+        var thresholdProvided = false;
+
+        if (request.Count > 2)
         {
             return false;
         }
 
-        return value > 0 || (index == 3 && value >= 0);
+        foreach (var token in request)
+        {
+            if (string.Equals(token, "debug", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(token, "d", StringComparison.OrdinalIgnoreCase))
+            {
+                if (debugMode)
+                {
+                    return false;
+                }
+
+                debugMode = true;
+                continue;
+            }
+
+            if (double.TryParse(token, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var parsedThreshold)
+                && parsedThreshold >= 0)
+            {
+                if (thresholdProvided)
+                {
+                    return false;
+                }
+
+                qualityThreshold = parsedThreshold;
+                thresholdProvided = true;
+                continue;
+            }
+
+            return false;
+        }
+
+        return true;
     }
 
     private async Task<double> GetDoubleValueAsync(string methodName)
     {
-        var response = await client.SendAsync(new XmlRpcRequest
+        var response = await SendRequestAsync(methodName);
+        return CommandRpcValueReader.ReadDoubleOrThrow(response.Value, methodName);
+    }
+
+    private async Task<string> GetStringValueAsync(string methodName)
+    {
+        var response = await SendRequestAsync(methodName);
+        return CommandRpcValueReader.ReadStringOrThrow(response.Value, methodName);
+    }
+
+    private async Task TrySendRequestAsync(string methodName, params object[] parameters)
+    {
+        try
+        {
+            await SendRequestAsync(methodName, parameters);
+        }
+        catch
+        {
+        }
+    }
+
+    private async Task<XmlRpcResponse> SendRequestAsync(string methodName, params object[] parameters)
+    {
+        return await client.SendAsync(new XmlRpcRequest
         {
             MethodName = methodName,
-            Parameters = []
+            Parameters = [.. parameters]
         });
-
-        return response.Value switch
-        {
-            double doubleValue => doubleValue,
-            int intValue => intValue,
-            string stringValue when double.TryParse(stringValue, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var parsedValue) => parsedValue,
-            _ => throw new InvalidOperationException($"{methodName} did not return a numeric value.")
-        };
     }
+
+    private static int ToCarrierOffsetInt(double carrierOffset)
+    {
+        return (int)Math.Round(carrierOffset, MidpointRounding.AwayFromZero);
+    }
+
+    private static bool IsCarrierOffsetInRange(double carrierOffset)
+    {
+        return carrierOffset >= MinCarrierOffsetHz && carrierOffset <= MaxCarrierOffsetHz;
+    }
+
+    private static double EnsureValidCarrierOffset(double carrierOffset)
+    {
+        if (carrierOffset < MinCarrierOffsetHz || carrierOffset > MaxCarrierOffsetHz)
+        {
+            throw new InvalidOperationException($"Carrier offset must be between {MinCarrierOffsetHz.ToString("0", CultureInfo.InvariantCulture)} and {MaxCarrierOffsetHz.ToString("0", CultureInfo.InvariantCulture)} Hz.");
+        }
+
+        return carrierOffset;
+    }
+
+    private sealed record ScanSessionState(string ModemName, double DialFrequencyHz, double CarrierOffsetHz);
 }

@@ -32,11 +32,12 @@ public class FlConsoleShellControllerTests
     public async Task HandleInputAsync_QuitCommand_StopsControllerAndDisplayLoop()
     {
         var quitCommand = new TestCommand("quit", responseText: string.Empty, repeat: false, repeatInterval: TimeSpan.Zero);
-        var controller = CreateController([quitCommand], out _, out _);
+        var controller = CreateController([quitCommand], out var outputBuffer, out _);
 
         await controller.HandleInputAsync("quit");
 
         Assert.False(controller.IsRunning);
+        Assert.Equal([string.Empty, string.Empty], outputBuffer.GetVisibleLines(10));
     }
 
     [Fact]
@@ -52,8 +53,30 @@ public class FlConsoleShellControllerTests
 
         Assert.Equal(["one", "two"], command.LastRequest);
         var lines = outputBuffer.GetVisibleLines(10).ToList();
-        Assert.Single(lines);
+        Assert.Equal(2, lines.Count);
         Assert.Equal("hello from command", lines[0]);
+        Assert.Equal(string.Empty, lines[1]);
+    }
+
+    [Fact]
+    public async Task HandleInputAsync_ClearCommand_ClearsExistingOutput()
+    {
+        var renderer = new FakePromptAreaRenderer();
+        var outputBuffer = new ConsoleOutputBuffer(MaxLines: 20);
+        var promptHandler = new ConsolePromptHandler(renderer, new EnterOnlyConsoleInput());
+        var runner = new CommandDisplayRunner(renderer, outputBuffer, promptHandler);
+        var resolver = new CommandResolver<IReadOnlyList<string>>([
+            new ClearCommand(outputBuffer, renderer, promptHandler)
+        ]);
+        var controller = new FlConsoleShellController(resolver, runner);
+
+        outputBuffer.AddLine("existing output");
+
+        await controller.HandleInputAsync("clear");
+        await WaitUntilAsync(() => outputBuffer.GetVisibleLines(10).Count == 2);
+        await controller.StopDisplayLoopAsync();
+
+        Assert.Equal([string.Empty, string.Empty], outputBuffer.GetVisibleLines(10));
     }
 
     [Fact]

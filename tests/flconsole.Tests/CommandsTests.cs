@@ -16,15 +16,28 @@ public class CommandsTests
         Assert.Equal(TimeSpan.Zero, new HelpCommand().RepeatInterval);
         Assert.False(new HelpCommand().StopsShell);
 
+        var clearBuffer = new ConsoleOutputBuffer();
+        var clearRenderer = new FakePromptAreaRenderer();
+        var clearPromptHandler = new ConsolePromptHandler(clearRenderer, new EnterOnlyConsoleInput());
+        Assert.Equal("clear", new ClearCommand(clearBuffer, clearRenderer, clearPromptHandler).CommandName);
+        Assert.False(new ClearCommand(clearBuffer, clearRenderer, clearPromptHandler).Repeat);
+        Assert.Equal(TimeSpan.Zero, new ClearCommand(clearBuffer, clearRenderer, clearPromptHandler).RepeatInterval);
+        Assert.False(new ClearCommand(clearBuffer, clearRenderer, clearPromptHandler).StopsShell);
+
         Assert.Equal("quit", new QuitCommand().CommandName);
         Assert.False(new QuitCommand().Repeat);
         Assert.Equal(TimeSpan.Zero, new QuitCommand().RepeatInterval);
         Assert.True(new QuitCommand().StopsShell);
 
         Assert.Equal("scan", new ScanCommand(CreateClientReturning("ok")).CommandName);
-        Assert.True(new ScanCommand(CreateClientReturning("ok")).Repeat);
-        Assert.Equal(TimeSpan.FromSeconds(3), new ScanCommand(CreateClientReturning("ok")).RepeatInterval);
+        Assert.False(new ScanCommand(CreateClientReturning("ok")).Repeat);
+        Assert.Equal(TimeSpan.Zero, new ScanCommand(CreateClientReturning("ok")).RepeatInterval);
         Assert.False(new ScanCommand(CreateClientReturning("ok")).StopsShell);
+
+        Assert.Equal("adjust", new AdjustCommand(CreateClientReturning("ok")).CommandName);
+        Assert.False(new AdjustCommand(CreateClientReturning("ok")).Repeat);
+        Assert.Equal(TimeSpan.Zero, new AdjustCommand(CreateClientReturning("ok")).RepeatInterval);
+        Assert.False(new AdjustCommand(CreateClientReturning("ok")).StopsShell);
 
         Assert.Equal("set", new SetCommand(CreateClientReturning("ok")).CommandName);
         Assert.False(new SetCommand(CreateClientReturning("ok")).Repeat);
@@ -40,6 +53,11 @@ public class CommandsTests
         Assert.True(new MonitorCommand(CreateClientReturning("ok")).Repeat);
         Assert.Equal(TimeSpan.FromSeconds(1), new MonitorCommand(CreateClientReturning("ok")).RepeatInterval);
         Assert.False(new MonitorCommand(CreateClientReturning("ok")).StopsShell);
+
+        Assert.Equal("identify", new IdentifyCommand(CreateClientReturning("ok")).CommandName);
+        Assert.False(new IdentifyCommand(CreateClientReturning("ok")).Repeat);
+        Assert.Equal(TimeSpan.Zero, new IdentifyCommand(CreateClientReturning("ok")).RepeatInterval);
+        Assert.False(new IdentifyCommand(CreateClientReturning("ok")).StopsShell);
     }
 
     [Fact]
@@ -50,9 +68,250 @@ public class CommandsTests
         var text = await ReadTextAsync(await command.ExecuteAsync(Array.Empty<string>()));
 
         Assert.Contains("Commands:", text);
+        Assert.Contains("clear", text);
+        Assert.Contains("adjust <frequency>", text);
         Assert.Contains("method <method-name>", text);
+        Assert.Contains("identify [all] [listen-seconds] [top-candidates] [v]", text);
         Assert.Contains("set <frequency> <rig-mode> <modem-name>", text);
         Assert.Contains("quit", text);
+    }
+
+    [Fact]
+    public async Task ClearCommand_ClearsOutputBuffer_AndReturnsEmptyStream()
+    {
+        var renderer = new FakePromptAreaRenderer();
+        var outputBuffer = new ConsoleOutputBuffer(MaxLines: 10);
+        var promptHandler = new ConsolePromptHandler(renderer, new EnterOnlyConsoleInput());
+        outputBuffer.AddLine("alpha");
+        outputBuffer.AddLine("beta");
+        var command = new ClearCommand(outputBuffer, renderer, promptHandler);
+
+        var text = await ReadTextAsync(await command.ExecuteAsync(Array.Empty<string>()));
+
+        Assert.Equal(string.Empty, text);
+        Assert.Empty(outputBuffer.GetVisibleLines(10));
+    }
+
+    [Fact]
+    public async Task AdjustCommand_WritesUsageForInvalidArguments()
+    {
+        var command = new AdjustCommand(CreateClientReturning("ok"));
+
+        var text = await ReadTextAsync(await command.ExecuteAsync(Array.Empty<string>()));
+
+        Assert.Equal("Usage: adjust <frequency>", text);
+    }
+
+    [Fact]
+    public async Task AdjustCommand_AdjustsOnlyCarrierWhenFrequencyIsInCurrentBand()
+    {
+        var handler = new QueueResponseHandler([
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcDoubleResponse(7072500),
+            CreateXmlRpcResponseWithoutParams()
+        ]);
+        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
+        var command = new AdjustCommand(client);
+
+        var text = await ReadTextAsync(await command.ExecuteAsync(["7074000"]));
+
+        Assert.Equal("Adjusted frequency=7074000, dial=7072500, carrier=1500", text);
+        Assert.Equal(3, handler.RequestBodies.Count);
+        Assert.Contains("<methodName>rig.take_control</methodName>", handler.RequestBodies[0]);
+        Assert.Contains("<methodName>rig.get_frequency</methodName>", handler.RequestBodies[1]);
+        Assert.Contains("<methodName>modem.set_carrier</methodName>", handler.RequestBodies[2]);
+        Assert.Contains("<double>1500</double>", handler.RequestBodies[2]);
+        Assert.DoesNotContain(handler.RequestBodies, body => body.Contains("<methodName>rig.set_frequency</methodName>", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task AdjustCommand_RecentersWhenFrequencyIsOutsideCurrentBand()
+    {
+        var handler = new QueueResponseHandler([
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcDoubleResponse(7072500),
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcResponseWithoutParams()
+        ]);
+        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
+        var command = new AdjustCommand(client);
+
+        var text = await ReadTextAsync(await command.ExecuteAsync(["7078000"]));
+
+        Assert.Equal("Adjusted frequency=7078000, dial=7076500, carrier=1500", text);
+        Assert.Equal(4, handler.RequestBodies.Count);
+        Assert.Contains("<methodName>rig.take_control</methodName>", handler.RequestBodies[0]);
+        Assert.Contains("<methodName>rig.get_frequency</methodName>", handler.RequestBodies[1]);
+        Assert.Contains("<methodName>rig.set_frequency</methodName>", handler.RequestBodies[2]);
+        Assert.Contains("<double>7076500</double>", handler.RequestBodies[2]);
+        Assert.Contains("<methodName>modem.set_carrier</methodName>", handler.RequestBodies[3]);
+        Assert.Contains("<double>1500</double>", handler.RequestBodies[3]);
+    }
+
+    [Fact]
+    public async Task AdjustCommand_AdjustsCarrierWhenFrequencyIsInsideRawBand()
+    {
+        var handler = new QueueResponseHandler([
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcDoubleResponse(7072500),
+            CreateXmlRpcResponseWithoutParams()
+        ]);
+        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
+        var command = new AdjustCommand(client);
+
+        var text = await ReadTextAsync(await command.ExecuteAsync(["7075450"]));
+
+        Assert.Equal("Adjusted frequency=7075450, dial=7072500, carrier=2950", text);
+        Assert.Equal(3, handler.RequestBodies.Count);
+        Assert.Contains("<methodName>rig.take_control</methodName>", handler.RequestBodies[0]);
+        Assert.Contains("<methodName>rig.get_frequency</methodName>", handler.RequestBodies[1]);
+        Assert.Contains("<methodName>modem.set_carrier</methodName>", handler.RequestBodies[2]);
+        Assert.Contains("<double>2950</double>", handler.RequestBodies[2]);
+        Assert.DoesNotContain(handler.RequestBodies, body => body.Contains("<methodName>rig.set_frequency</methodName>", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task IdentifyCommand_WritesUsageForInvalidArguments()
+    {
+        var command = new IdentifyCommand(CreateClientReturning("ok"));
+
+        var text = await ReadTextAsync(await command.ExecuteAsync(["abc"]));
+
+        Assert.Equal("Usage: identify [all] [listen-seconds] [top-candidates] [v]", text);
+    }
+
+    [Fact]
+    public async Task IdentifyCommand_UsesRsidBeforeHeuristicSweep()
+    {
+        var handler = new QueueResponseHandler([
+            CreateXmlRpcResponse("BPSK31"),
+            CreateXmlRpcBooleanResponse(false),
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcDoubleResponse(14072500),
+            CreateXmlRpcDoubleResponse(1500),
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcResponse("BPSK31"),
+            CreateXmlRpcDoubleResponse(0),
+            CreateXmlRpcResponse("Olivia 8-500"),
+            CreateXmlRpcDoubleResponse(34.2),
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcResponseWithoutParams()
+        ]);
+        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
+        var command = new IdentifyCommand(client);
+
+        var text = await ReadTextAsync(await command.ExecuteAsync(["1", "3"]));
+
+        Assert.Contains("Listening for RSID", text);
+        Assert.Contains("RSID identified modem: Olivia 8-500", text);
+        Assert.DoesNotContain("heuristic modem sweep", text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(handler.RequestBodies, body => body.Contains("<methodName>rig.take_control</methodName>", StringComparison.Ordinal));
+        Assert.Contains(handler.RequestBodies, body => body.Contains("<methodName>rig.set_frequency</methodName>", StringComparison.Ordinal));
+        Assert.Contains(handler.RequestBodies, body => body.Contains("<double>14072500</double>", StringComparison.Ordinal));
+        Assert.Contains(handler.RequestBodies, body => body.Contains("<methodName>modem.set_carrier</methodName>", StringComparison.Ordinal));
+        Assert.Contains(handler.RequestBodies, body => body.Contains("<double>1500</double>", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task IdentifyCommand_VerboseFlag_EmitsPerCandidateScoresWhenFallingBack()
+    {
+        var handler = new QueueResponseHandler([
+            CreateXmlRpcResponse("BPSK31"),
+            CreateXmlRpcBooleanResponse(true),
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcDoubleResponse(14072500),
+            CreateXmlRpcDoubleResponse(1500),
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcResponse("BPSK31"),
+            CreateXmlRpcDoubleResponse(0),
+            CreateXmlRpcResponse("BPSK31"),
+            CreateXmlRpcDoubleResponse(0),
+            CreateXmlRpcDoubleResponse(25),
+            CreateXmlRpcArrayResponse(["BPSK31", "Olivia 8-500"]),
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcDoubleResponse(10),
+            CreateXmlRpcResponse("plain text"),
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcDoubleResponse(25),
+            CreateXmlRpcResponse("plain text"),
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcResponseWithoutParams()
+        ]);
+        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
+        var command = new IdentifyCommand(client, new IdentifyCommandSettings(["BPSK31"]));
+
+        var text = await ReadTextAsync(await command.ExecuteAsync(["all", "1", "2", "v"]));
+
+        Assert.Contains("running heuristic modem sweep", text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Verbose candidate: BPSK31", text);
+        Assert.Contains("Verbose candidate: Olivia 8-500", text);
+        Assert.Contains("Top candidates:", text);
+    }
+
+    [Fact]
+    public async Task IdentifyCommand_BelowThreshold_SaysNothingToIdentify()
+    {
+        var handler = new QueueResponseHandler([
+            CreateXmlRpcResponse("BPSK31"),
+            CreateXmlRpcBooleanResponse(true),
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcDoubleResponse(14072500),
+            CreateXmlRpcDoubleResponse(1500),
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcResponse("BPSK31"),
+            CreateXmlRpcDoubleResponse(0),
+            CreateXmlRpcResponse("BPSK31"),
+            CreateXmlRpcDoubleResponse(0),
+            CreateXmlRpcDoubleResponse(4.9),
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcResponseWithoutParams()
+        ]);
+        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
+        var command = new IdentifyCommand(client);
+
+        var text = await ReadTextAsync(await command.ExecuteAsync(["1"]));
+
+        Assert.Contains("nothing to identify", text, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("heuristic modem sweep", text, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Top candidates:", text);
+    }
+
+    [Fact]
+    public async Task IdentifyCommand_UsesConfiguredModemList_WhenAllIsNotSpecified()
+    {
+        var handler = new QueueResponseHandler([
+            CreateXmlRpcResponse("BPSK31"),
+            CreateXmlRpcBooleanResponse(true),
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcDoubleResponse(14072500),
+            CreateXmlRpcDoubleResponse(1500),
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcResponse("BPSK31"),
+            CreateXmlRpcDoubleResponse(0),
+            CreateXmlRpcResponse("BPSK31"),
+            CreateXmlRpcDoubleResponse(0),
+            CreateXmlRpcDoubleResponse(25),
+            CreateXmlRpcArrayResponse(["BPSK31", "Olivia 8-500"]),
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcDoubleResponse(10),
+            CreateXmlRpcResponse("plain text"),
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcResponseWithoutParams()
+        ]);
+        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
+        var command = new IdentifyCommand(client, new IdentifyCommandSettings(["BPSK31"]));
+
+        var text = await ReadTextAsync(await command.ExecuteAsync(["1", "2", "v"]));
+
+        Assert.Contains("Verbose candidate: BPSK31", text);
+        Assert.DoesNotContain("Verbose candidate: Olivia 8-500", text);
+        Assert.Contains("Selected modem: BPSK31", text);
     }
 
     [Fact]
@@ -66,82 +325,178 @@ public class CommandsTests
     }
 
     [Fact]
-    public async Task ScanCommand_WritesUsageForMissingBounds()
+    public async Task ScanCommand_WritesUsageForTooManyArguments()
     {
         var command = new ScanCommand(CreateClientReturning("ok"));
 
-        var text = await ReadTextAsync(await command.ExecuteAsync(Array.Empty<string>()));
+        var text = await ReadTextAsync(await command.ExecuteAsync(["1", "2", "debug"]));
 
-        Assert.Equal("Usage: scan <lower-frequency> <upper-frequency> [step-hz] [quality-threshold]", text);
+        Assert.Equal("Usage: scan [quality-threshold] [debug]", text);
     }
 
     [Fact]
     public async Task ScanCommand_ReportsActivityAcrossFrequencyRange()
     {
-        var handler = new QueueResponseHandler([
+        var responsePayloads = new List<string>
+        {
             CreateXmlRpcResponseWithoutParams(),
-            CreateXmlRpcResponseWithoutParams(),
-            CreateXmlRpcDoubleResponse(10),
-            CreateXmlRpcResponseWithoutParams(),
-            CreateXmlRpcDoubleResponse(25.5),
-            CreateXmlRpcResponseWithoutParams(),
-            CreateXmlRpcDoubleResponse(10)
-        ]);
+            CreateXmlRpcResponse("BPSK31"),
+            CreateXmlRpcDoubleResponse(7073850),
+            CreateXmlRpcIntResponse(1500),
+            CreateXmlRpcResponseWithoutParams()
+        };
+
+        for (var index = 0; index < 29; index++)
+        {
+            responsePayloads.Add(CreateXmlRpcResponseWithoutParams());
+            responsePayloads.Add(CreateXmlRpcDoubleResponse(index == 1 ? 25.5 : 10));
+        }
+
+        responsePayloads.Add(CreateXmlRpcResponseWithoutParams());
+        responsePayloads.Add(CreateXmlRpcResponseWithoutParams());
+        responsePayloads.Add(CreateXmlRpcResponseWithoutParams());
+
+        var handler = new QueueResponseHandler(responsePayloads);
         var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
-        var command = new ScanCommand(client);
+        var command = new ScanCommand(client, new ScanCommandSettings(0));
 
-        var text = await ReadTextAsync(await command.ExecuteAsync(["1000", "7000", "3000"]));
+        var text = await ReadTextAsync(await command.ExecuteAsync(Array.Empty<string>()));
 
-        Assert.Contains("Activity at 4000 Hz (quality=25.5)", text);
-        Assert.Equal(7, handler.RequestBodies.Count);
+        Assert.StartsWith(Environment.NewLine, text);
+        Assert.Contains("Activity at 7.074.050 Hz (quality=25.5)", text);
+        Assert.EndsWith("Done.", text);
+        Assert.Equal(66, handler.RequestBodies.Count);
         Assert.Contains("<methodName>rig.take_control</methodName>", handler.RequestBodies[0]);
-        Assert.Contains("<methodName>rig.set_frequency</methodName>", handler.RequestBodies[1]);
-        Assert.Contains("<double>1000</double>", handler.RequestBodies[1]);
-        Assert.Contains("<methodName>modem.get_quality</methodName>", handler.RequestBodies[2]);
-        Assert.Contains("<methodName>rig.set_frequency</methodName>", handler.RequestBodies[3]);
-        Assert.Contains("<double>4000</double>", handler.RequestBodies[3]);
-        Assert.Contains("<methodName>rig.set_frequency</methodName>", handler.RequestBodies[5]);
-        Assert.Contains("<double>7000</double>", handler.RequestBodies[5]);
+        Assert.Contains("<methodName>modem.get_name</methodName>", handler.RequestBodies[1]);
+        Assert.Contains("<methodName>rig.get_frequency</methodName>", handler.RequestBodies[2]);
+        Assert.Contains("<methodName>modem.get_carrier</methodName>", handler.RequestBodies[3]);
+        Assert.Contains("<methodName>modem.set_by_name</methodName>", handler.RequestBodies[4]);
+        Assert.Contains("<string>CW</string>", handler.RequestBodies[4]);
+        Assert.Contains("<methodName>modem.set_carrier</methodName>", handler.RequestBodies[5]);
+        Assert.Contains("<int>100</int>", handler.RequestBodies[5]);
+        Assert.Contains("<methodName>modem.get_quality</methodName>", handler.RequestBodies[6]);
+        Assert.Contains("<methodName>modem.set_carrier</methodName>", handler.RequestBodies[7]);
+        Assert.Contains("<int>200</int>", handler.RequestBodies[7]);
+        Assert.Contains("<methodName>modem.get_quality</methodName>", handler.RequestBodies[8]);
+        Assert.Contains("<methodName>modem.set_by_name</methodName>", handler.RequestBodies[63]);
+        Assert.Contains("<string>BPSK31</string>", handler.RequestBodies[63]);
+        Assert.Contains("<methodName>rig.set_frequency</methodName>", handler.RequestBodies[64]);
+        Assert.Contains("<double>7073850</double>", handler.RequestBodies[64]);
+        Assert.Contains("<methodName>modem.set_carrier</methodName>", handler.RequestBodies[65]);
+        Assert.Contains("<int>1500</int>", handler.RequestBodies[65]);
     }
 
     [Fact]
     public async Task ScanCommand_ReturnsEmptyOutputWhenNoActivityIsFound()
     {
-        var handler = new QueueResponseHandler([
+        var responsePayloads = new List<string>
+        {
             CreateXmlRpcResponseWithoutParams(),
-            CreateXmlRpcResponseWithoutParams(),
-            CreateXmlRpcDoubleResponse(10),
-            CreateXmlRpcResponseWithoutParams(),
-            CreateXmlRpcDoubleResponse(10)
-        ]);
+            CreateXmlRpcResponse("BPSK31"),
+            CreateXmlRpcDoubleResponse(7073850),
+            CreateXmlRpcIntResponse(1500),
+            CreateXmlRpcResponseWithoutParams()
+        };
+
+        for (var index = 0; index < 29; index++)
+        {
+            responsePayloads.Add(CreateXmlRpcResponseWithoutParams());
+            responsePayloads.Add(CreateXmlRpcDoubleResponse(10));
+        }
+
+        responsePayloads.Add(CreateXmlRpcResponseWithoutParams());
+        responsePayloads.Add(CreateXmlRpcResponseWithoutParams());
+        responsePayloads.Add(CreateXmlRpcResponseWithoutParams());
+
+        var handler = new QueueResponseHandler(responsePayloads);
         var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
-        var command = new ScanCommand(client);
+        var command = new ScanCommand(client, new ScanCommandSettings(0));
 
-        var text = await ReadTextAsync(await command.ExecuteAsync(["5000", "1000", "3000"]));
+        var text = await ReadTextAsync(await command.ExecuteAsync(Array.Empty<string>()));
 
-        Assert.Equal(string.Empty, text);
+        Assert.Equal($"{Environment.NewLine}Done.", text);
     }
 
     [Fact]
-    public async Task ScanCommand_UsesOptionalStepAndThreshold()
+    public async Task ScanCommand_UsesOptionalThreshold()
     {
-        var handler = new QueueResponseHandler([
+        var responsePayloads = new List<string>
+        {
             CreateXmlRpcResponseWithoutParams(),
-            CreateXmlRpcResponseWithoutParams(),
-            CreateXmlRpcDoubleResponse(4.9),
-            CreateXmlRpcResponseWithoutParams(),
-            CreateXmlRpcDoubleResponse(5.1),
-            CreateXmlRpcResponseWithoutParams(),
-            CreateXmlRpcDoubleResponse(9)
-        ]);
-        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
-        var command = new ScanCommand(client);
+            CreateXmlRpcResponse("BPSK31"),
+            CreateXmlRpcDoubleResponse(7073850),
+            CreateXmlRpcIntResponse(1500),
+            CreateXmlRpcResponseWithoutParams()
+        };
 
-        var text = await ReadTextAsync(await command.ExecuteAsync(["1000", "5000", "2000", "5"]));
+        for (var index = 0; index < 29; index++)
+        {
+            responsePayloads.Add(CreateXmlRpcResponseWithoutParams());
+            responsePayloads.Add(CreateXmlRpcDoubleResponse(index switch
+            {
+                0 => 4.9,
+                1 => 5.1,
+                2 => 9,
+                _ => 0
+            }));
+        }
+
+        responsePayloads.Add(CreateXmlRpcResponseWithoutParams());
+        responsePayloads.Add(CreateXmlRpcResponseWithoutParams());
+        responsePayloads.Add(CreateXmlRpcResponseWithoutParams());
+
+        var handler = new QueueResponseHandler(responsePayloads);
+        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
+        var command = new ScanCommand(client, new ScanCommandSettings(0));
+
+        var text = await ReadTextAsync(await command.ExecuteAsync(["5"]));
 
         Assert.DoesNotContain("Activity at 1000 Hz", text);
-        Assert.Contains("Activity at 3000 Hz (quality=5.1)", text);
-        Assert.Contains("Activity at 5000 Hz (quality=9)", text);
+        Assert.Contains("Activity at 7.074.050 Hz (quality=5.1)", text);
+        Assert.Contains("Activity at 7.074.150 Hz (quality=9)", text);
+        Assert.EndsWith("Done.", text);
+    }
+
+    [Fact]
+    public async Task ScanCommand_DebugMode_PrintsQualityAtEachStop()
+    {
+        var responsePayloads = new List<string>
+        {
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcResponse("BPSK31"),
+            CreateXmlRpcDoubleResponse(7073850),
+            CreateXmlRpcIntResponse(1500),
+            CreateXmlRpcResponseWithoutParams()
+        };
+
+        for (var index = 0; index < 29; index++)
+        {
+            responsePayloads.Add(CreateXmlRpcResponseWithoutParams());
+            responsePayloads.Add(CreateXmlRpcIntResponse(100 + (index * 100)));
+            responsePayloads.Add(CreateXmlRpcDoubleResponse(index switch
+            {
+                0 => 4.9,
+                1 => 5.1,
+                _ => 0
+            }));
+        }
+
+        responsePayloads.Add(CreateXmlRpcResponseWithoutParams());
+        responsePayloads.Add(CreateXmlRpcResponseWithoutParams());
+        responsePayloads.Add(CreateXmlRpcResponseWithoutParams());
+
+        var handler = new QueueResponseHandler(responsePayloads);
+        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
+        var command = new ScanCommand(client, new ScanCommandSettings(0));
+
+        var text = await ReadTextAsync(await command.ExecuteAsync(["5", "debug"]));
+
+        Assert.Contains("Carrier requested=100 Hz readback=100 Hz", text);
+        Assert.Contains("Carrier requested=200 Hz readback=200 Hz", text);
+        Assert.Contains("Quality at 7.073.950 Hz: 4.9", text);
+        Assert.Contains("Quality at 7.074.050 Hz: 5.1", text);
+        Assert.Contains("Activity at 7.074.050 Hz (quality=5.1)", text);
+        Assert.EndsWith("Done.", text);
     }
 
     [Fact]
@@ -260,6 +615,7 @@ public class CommandsTests
             CreateXmlRpcResponseWithoutParams(),
             CreateXmlRpcResponseWithoutParams(),
             CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcResponseWithoutParams(),
             CreateXmlRpcResponseWithoutParams()
         ]);
         var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
@@ -268,14 +624,16 @@ public class CommandsTests
         var text = await ReadTextAsync(await command.ExecuteAsync(["14074000", "USB", "Olivia"]));
 
         Assert.Equal("Set frequency=14074000, rigMode=USB, modem=Olivia", text);
-        Assert.Equal(4, handler.RequestBodies.Count);
+        Assert.Equal(5, handler.RequestBodies.Count);
         Assert.Contains("<methodName>rig.take_control</methodName>", handler.RequestBodies[0]);
         Assert.Contains("<methodName>rig.set_frequency</methodName>", handler.RequestBodies[1]);
-        Assert.Contains("<double>14074000</double>", handler.RequestBodies[1]);
-        Assert.Contains("<methodName>rig.set_mode</methodName>", handler.RequestBodies[2]);
-        Assert.Contains("<string>USB</string>", handler.RequestBodies[2]);
-        Assert.Contains("<methodName>modem.set_by_name</methodName>", handler.RequestBodies[3]);
-        Assert.Contains("<string>Olivia</string>", handler.RequestBodies[3]);
+        Assert.Contains("<double>14072500</double>", handler.RequestBodies[1]);
+        Assert.Contains("<methodName>modem.set_carrier</methodName>", handler.RequestBodies[2]);
+        Assert.Contains("<double>1500</double>", handler.RequestBodies[2]);
+        Assert.Contains("<methodName>rig.set_mode</methodName>", handler.RequestBodies[3]);
+        Assert.Contains("<string>USB</string>", handler.RequestBodies[3]);
+        Assert.Contains("<methodName>modem.set_by_name</methodName>", handler.RequestBodies[4]);
+        Assert.Contains("<string>Olivia</string>", handler.RequestBodies[4]);
     }
 
     [Fact]
@@ -356,6 +714,35 @@ public class CommandsTests
 <methodResponse>
     <params>
         <param><value><base64>{value}</base64></value></param>
+    </params>
+</methodResponse>
+""";
+        }
+
+    private static string CreateXmlRpcBooleanResponse(bool value)
+    {
+        return $"""
+<methodResponse>
+    <params>
+    <param><value><boolean>{(value ? 1 : 0)}</boolean></value></param>
+    </params>
+</methodResponse>
+""";
+    }
+
+        private static string CreateXmlRpcArrayResponse(IEnumerable<string> values)
+        {
+                var entries = string.Join(string.Empty, values.Select(value => $"<value><string>{value}</string></value>"));
+                return $"""
+<methodResponse>
+    <params>
+        <param>
+            <value>
+                <array>
+                    <data>{entries}</data>
+                </array>
+            </value>
+        </param>
     </params>
 </methodResponse>
 """;

@@ -33,8 +33,8 @@ public sealed class FlConsoleShellController(ICommandResolver<IReadOnlyList<stri
 
         if (command.StopsShell)
         {
+            await DisplayRunner.RunToCompletionAsync(command, request.Arguments);
             IsRunning = false;
-            await StopDisplayLoopAsync();
             return;
         }
 

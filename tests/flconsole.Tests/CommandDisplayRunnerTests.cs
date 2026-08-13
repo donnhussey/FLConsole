@@ -19,11 +19,11 @@ public class CommandDisplayRunnerTests
         var command = new RunnerTestCommand("once", repeat: false, TimeSpan.Zero);
 
         await runner.StartAsync(command, Array.Empty<string>());
-        await WaitUntilAsync(() => outputBuffer.GetVisibleLines(10).Any());
+        await WaitUntilAsync(() => outputBuffer.GetVisibleLines(10).Count == 2);
         await runner.StopAsync();
 
         Assert.Equal(1, command.ExecuteCount);
-        Assert.Contains("once", outputBuffer.GetVisibleLines(10));
+        Assert.Equal(["once", string.Empty], outputBuffer.GetVisibleLines(10));
         Assert.True(renderer.RenderOutputCallCount >= 1);
         Assert.True(renderer.RenderInputCallCount >= 1);
     }
@@ -36,10 +36,10 @@ public class CommandDisplayRunnerTests
 
         outputBuffer.AppendText("existing ");
         await runner.StartAsync(command, Array.Empty<string>());
-        await WaitUntilAsync(() => outputBuffer.GetVisibleLines(10).Any(line => line.Contains("going region", StringComparison.Ordinal)));
+        await WaitUntilAsync(() => outputBuffer.GetVisibleLines(10).Count == 2);
         await runner.StopAsync();
 
-        Assert.Equal(["existing going region"], outputBuffer.GetVisibleLines(10));
+        Assert.Equal(["existing going region", string.Empty], outputBuffer.GetVisibleLines(10));
     }
 
     [Fact]
@@ -55,10 +55,10 @@ public class CommandDisplayRunnerTests
         Assert.Equal(["first"], interimLines);
 
         command.ReleaseSecondChunk();
-        await WaitUntilAsync(() => outputBuffer.GetVisibleLines(10).Any(line => line.Contains("second", StringComparison.Ordinal)));
+        await WaitUntilAsync(() => outputBuffer.GetVisibleLines(10).Count == 2);
         await runner.StopAsync();
 
-        Assert.Equal(["first second"], outputBuffer.GetVisibleLines(10));
+        Assert.Equal(["first second", string.Empty], outputBuffer.GetVisibleLines(10));
     }
 
     [Fact]
@@ -71,7 +71,7 @@ public class CommandDisplayRunnerTests
         await WaitUntilAsync(() => command.ExecuteCount >= 1);
         await runner.StopAsync();
 
-        Assert.Empty(outputBuffer.GetVisibleLines(10));
+        Assert.Equal([string.Empty, string.Empty], outputBuffer.GetVisibleLines(10));
     }
 
     [Fact]

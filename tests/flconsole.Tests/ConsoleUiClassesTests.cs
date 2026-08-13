@@ -45,6 +45,32 @@ public class ConsoleUiClassesTests
     }
 
     [Fact]
+    public void ConsoleOutputBuffer_GetVisibleRows_WrapsOnWhitespaceWhenPossible()
+    {
+        var buffer = new ConsoleOutputBuffer(MaxLines: 10);
+
+        buffer.AddLine("alpha beta gamma");
+
+        var visibleRows = buffer.GetVisibleRows(10, 10);
+
+        Assert.Equal(["alpha beta", "gamma"], visibleRows);
+    }
+
+    [Fact]
+    public void ConsoleOutputBuffer_AppendText_IgnoresLoneCarriageReturns()
+    {
+        var buffer = new ConsoleOutputBuffer(MaxLines: 10);
+
+        buffer.AppendText("c");
+        buffer.AppendText("w\r");
+        buffer.AppendText("t\re\rs\rt");
+
+        var visibleLines = buffer.GetVisibleLines(10);
+
+        Assert.Equal(["cwtest"], visibleLines);
+    }
+
+    [Fact]
     public void ConsolePromptHandler_TracksCurrentTextAndCursor()
     {
         var renderer = new FakePromptAreaRenderer();

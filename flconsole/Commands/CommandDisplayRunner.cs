@@ -36,6 +36,12 @@ public sealed class CommandDisplayRunner(IRenderer Renderer, ConsoleOutputBuffer
         _displayLoopTask = null;
     }
 
+    public async Task RunToCompletionAsync(ICommand<IReadOnlyList<string>> command, IReadOnlyList<string> request)
+    {
+        await StopAsync();
+        await RunDisplayLoopAsync(command, request, CancellationToken.None);
+    }
+
     public void AppendLineAndRender(string line)
     {
         OutputBuffer.AddLine(line);
@@ -72,6 +78,7 @@ public sealed class CommandDisplayRunner(IRenderer Renderer, ConsoleOutputBuffer
 
                 if (!command.Repeat)
                 {
+                    AppendTextAndRender(Environment.NewLine);
                     break;
                 }
             }

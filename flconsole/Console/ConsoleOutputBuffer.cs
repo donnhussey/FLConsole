@@ -4,6 +4,11 @@ public sealed class ConsoleOutputBuffer(int MaxLines = 500)
 {
     private readonly List<string> _lines = [];
 
+    public void Clear()
+    {
+        _lines.Clear();
+    }
+
     public void AddLine(string text)
     {
         _lines.Add(text);
@@ -17,19 +22,27 @@ public sealed class ConsoleOutputBuffer(int MaxLines = 500)
             return;
         }
 
-        var normalizedText = text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
-        var segments = normalizedText.Split('\n');
+        var normalizedText = text.Replace("\r\n", "\n", StringComparison.Ordinal);
 
         if (_lines.Count == 0)
         {
             _lines.Add(string.Empty);
         }
 
-        _lines[^1] += segments[0];
-
-        for (var index = 1; index < segments.Length; index++)
+        foreach (var character in normalizedText)
         {
-            _lines.Add(segments[index]);
+            if (character == '\r')
+            {
+                continue;
+            }
+
+            if (character == '\n')
+            {
+                _lines.Add(string.Empty);
+                continue;
+            }
+
+            _lines[^1] += character;
         }
 
         TrimToMaxLines();
@@ -73,10 +86,55 @@ public sealed class ConsoleOutputBuffer(int MaxLines = 500)
             yield break;
         }
 
-        for (var index = 0; index < line.Length; index += width)
+        var remaining = line;
+        while (remaining.Length > width)
         {
-            var length = Math.Min(width, line.Length - index);
-            yield return line.Substring(index, length);
+            var wrapIndex = FindWrapIndex(remaining, width);
+            if (wrapIndex <= 0)
+            {
+                wrapIndex = width;
+            }
+
+            yield return remaining[..wrapIndex];
+
+            var nextIndex = wrapIndex;
+            while (nextIndex < remaining.Length && char.IsWhiteSpace(remaining[nextIndex]))
+            {
+                nextIndex++;
+            }
+
+            remaining = remaining[nextIndex..];
         }
+
+        yield return remaining;
+    }
+
+    private static int FindWrapIndex(string text, int width)
+    {
+        if (text.Length <= width)
+        {
+            return text.Length;
+        }
+
+        var searchLength = Math.Min(width + 1, text.Length);
+        for (var index = searchLength - 1; index >= 0; index--)
+        {
+            if (!char.IsWhiteSpace(text[index]))
+            {
+                continue;
+            }
+
+            if (index == width)
+            {
+                return width;
+            }
+
+            if (index > 0)
+            {
+                return index;
+            }
+        }
+
+        return width;
     }
 }

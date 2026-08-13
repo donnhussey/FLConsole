@@ -30,11 +30,11 @@ public sealed class MonitorCommand(XmlRpcClient client) : ICommand<IReadOnlyList
                     ? payloadText
                     : XmlRpcValueHelper.FormatValue(payload);
 
-            return new MemoryStream(Encoding.UTF8.GetBytes(text));
+            return CommandTextStream.Create(text);
         }
         catch (Exception ex)
         {
-            return new MemoryStream(Encoding.UTF8.GetBytes($"Error: {ex.Message}"));
+            return CommandTextStream.Create($"Error: {ex.Message}");
         }
     }
 }

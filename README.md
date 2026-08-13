@@ -53,7 +53,9 @@ dotnet run
 Run a command immediately after startup:
 
 ```text
+clear
 method system.listMethods
+identify 5 5 v
 ```
 
 ## Configuration
@@ -73,31 +75,52 @@ Example:
 {
   "FlConsole": {
     "Host": "127.0.0.1",
-    "Port": 7362
+    "Port": 7362,
+    "ScanSettleDelayMilliseconds": 250
   }
 }
 ```
+
+Scan configuration:
+
+- `ScanSettleDelayMilliseconds`
+  - Delay after each `modem.set_carrier` step before reading quality.
+  - Default: `250`.
+- `IdentifyModems`
+  - Ordered modem list used by `identify` when `all` is not specified.
+  - `identify all ...` overrides this and tests every modem returned by FLDigi.
 
 `Program` also supports loading an optional root `appsettings.json`.
 
 ## Commands
 
+- `clear`
+  - Clear the console output area and keep the shell running.
 - `help`
   - Show available commands and examples.
 - `quit`
   - Exit the shell.
 - `method <method-name> [arg1 arg2 ...]`
   - Call any XML-RPC method directly.
+- `identify [all] [listen-seconds] [top-candidates] [v]`
+  - Reads current `rig.get_frequency` and `modem.get_carrier`, computes signal frequency as `dial + carrier`, then recenters by setting dial to `signal - 1500` with carrier `1500`.
+  - Attempts RSID-based identification first.
+  - If RSID does not switch modem, runs a heuristic modem sweep and ranks candidates.
+  - By default, sweeps only `FlConsole:IdentifyModems` from config.
+  - Add `all` to sweep all modem names returned by FLDigi.
+  - Add `v` to include per-candidate scoring lines.
 - `set <frequency> <rig-mode> <modem-name>`
   - Take rig control, set frequency/mode, and set modem.
-- `scan <lower-frequency> <upper-frequency> [step-hz] [quality-threshold]`
-  - Repeatedly sweep a range and print activity above threshold.
-  - Defaults:
-    - `step-hz = 50`
-    - `quality-threshold = 20`
-  - Sweep repeat interval is 3 seconds, with a 250 ms settle delay after each frequency set.
+- `scan [quality-threshold] [debug]`
+  - Takes rig control and temporarily switches modem to `CW`.
+  - Scans carrier offsets from `100` to `2900` Hz in `100` Hz steps using `modem.set_carrier`.
+  - Reports activity where `modem.get_quality` is above the threshold (default `20`).
+  - Add `debug` (or `d`) to print requested/readback carrier and per-stop quality lines.
+  - Restores prior modem, dial frequency, and carrier offset after completion.
 - `monitor`
   - Poll `rx.get_data` once per second and print decoded RX text.
+
+- Note: `set` tunes to `requested frequency - 1500` with modem carrier `1500`. `identify` recenters the currently selected signal by using current dial + carrier, then setting dial to `signal - 1500` and carrier to `1500`. `scan` sweeps in-band carriers and then restores prior rig/modem state.
 
 ## Code Structure
 
