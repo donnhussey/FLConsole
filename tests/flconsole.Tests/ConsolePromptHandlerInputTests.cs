@@ -3,7 +3,7 @@ namespace flconsole.Tests;
 public class ConsolePromptHandlerInputTests
 {
     [Fact]
-    public void ReadLineFromPrompt_EnterImmediately_ReturnsEmptyString()
+    public void ReadCommand_EnterImmediately_ReturnsNull()
     {
         var renderer = new FakePromptAreaRenderer();
         var input = new QueueConsoleInput([
@@ -11,16 +11,15 @@ public class ConsolePromptHandlerInputTests
         ]);
         var handler = new ConsolePromptHandler(renderer, input);
 
-        var line = handler.ReadLineFromPrompt();
+        var command = handler.ReadCommand();
 
-        Assert.Equal(string.Empty, line);
-        Assert.False(handler.IsActive);
+        Assert.Null(command);
         Assert.Equal(string.Empty, renderer.LastPromptText);
         Assert.Equal(0, renderer.LastCursorIndex);
     }
 
     [Fact]
-    public void ReadLineFromPrompt_CtrlD_ReturnsNull()
+    public void ReadCommand_CtrlD_ReturnsNull()
     {
         var renderer = new FakePromptAreaRenderer();
         var input = new QueueConsoleInput([
@@ -28,14 +27,13 @@ public class ConsolePromptHandlerInputTests
         ]);
         var handler = new ConsolePromptHandler(renderer, input);
 
-        var line = handler.ReadLineFromPrompt();
+        var command = handler.ReadCommand();
 
-        Assert.Null(line);
-        Assert.False(handler.IsActive);
+        Assert.Null(command);
     }
 
     [Fact]
-    public void ReadLineFromPrompt_BackspaceDeleteArrowsAndEscape_AffectBufferAsExpected()
+    public void ReadCommand_BackspaceDeleteArrowsAndEscape_AffectBufferAsExpected()
     {
         var renderer = new FakePromptAreaRenderer();
         var input = new QueueConsoleInput([
@@ -53,16 +51,15 @@ public class ConsolePromptHandlerInputTests
         ]);
         var handler = new ConsolePromptHandler(renderer, input);
 
-        var line = handler.ReadLineFromPrompt();
+        var command = handler.ReadCommand();
 
-        Assert.Equal("z", line);
-        Assert.Equal("z", handler.CurrentText);
-        Assert.Equal(1, handler.CurrentCursorIndex);
-        Assert.False(handler.IsActive);
+        Assert.Equal("z", command?.Name);
+        Assert.Equal("z", handler.PromptState.Text);
+        Assert.Equal(1, handler.PromptState.CursorIndex);
     }
 
     [Fact]
-    public void ReadLineFromPrompt_RightArrow_AtEnd_DoesNotMovePastBuffer()
+    public void ReadCommand_RightArrow_AtEnd_DoesNotMovePastBuffer()
     {
         var renderer = new FakePromptAreaRenderer();
         var input = new QueueConsoleInput([
@@ -73,10 +70,10 @@ public class ConsolePromptHandlerInputTests
         ]);
         var handler = new ConsolePromptHandler(renderer, input);
 
-        var line = handler.ReadLineFromPrompt();
+        var command = handler.ReadCommand();
 
-        Assert.Equal("q", line);
-        Assert.Equal(1, handler.CurrentCursorIndex);
+        Assert.Equal("q", command?.Name);
+        Assert.Equal(1, handler.PromptState.CursorIndex);
     }
 
     private static ConsoleKeyInfo Key(char character, ConsoleKey key)

@@ -4,9 +4,7 @@ namespace flconsole;
 
 public sealed class FlConsoleApplication(
     ICommandResolver<IReadOnlyList<string>> commandResolver,
-    IRenderer renderer,
-    ConsoleOutputBuffer outputBuffer,
-    IPromptReader promptReader,
+    IConsole console,
     XmlRpcConnectionSettings connectionSettings,
     IShellController shellController)
 {
@@ -17,21 +15,20 @@ public sealed class FlConsoleApplication(
             return await PrintUsageAsync(output);
         }
 
-        renderer.Clear();
-        outputBuffer.AddLine($"FLDigi XML-RPC shell (host={connectionSettings.Host}, port={connectionSettings.Port})");
-        outputBuffer.AddLine("Type 'help' for commands, or 'quit' to exit.");
-        renderer.RenderOutput(outputBuffer);
-        renderer.RenderInput(string.Empty, 0);
+        console.Display.Clear();
+        console.Display.AppendLine($"FLDigi XML-RPC shell (host={connectionSettings.Host}, port={connectionSettings.Port})");
+        console.Display.AppendLine("Type 'help' for commands, or 'quit' to exit.");
+        console.Display.ShowPrompt(string.Empty, 0);
 
         while (shellController.IsRunning)
         {
-            var line = promptReader.ReadLineFromPrompt();
-            if (line is null)
+            var command = console.CommandSource.ReadCommand();
+            if (command is null)
             {
                 break;
             }
 
-            await shellController.HandleInputAsync(line);
+            await shellController.HandleCommandAsync(command);
         }
 
         await shellController.StopDisplayLoopAsync();

@@ -12,7 +12,7 @@ internal static class Program
             .AddFlConsole(configuration);
         using var serviceProvider = serviceCollection.BuildServiceProvider();
         var app = serviceProvider.GetRequiredService<FlConsoleApplication>();
-        return await app.RunAsync(args, Console.Out);
+        return await app.RunAsync(args, global::System.Console.Out);
     }
 
     private static IConfiguration BuildConfiguration()

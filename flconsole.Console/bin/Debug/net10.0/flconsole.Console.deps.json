@@ -1,0 +1,39 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "flconsole.Console/1.0.0": {
+        "dependencies": {
+          "flconsole.XmlRpc": "1.0.0"
+        },
+        "runtime": {
+          "flconsole.Console.dll": {}
+        }
+      },
+      "flconsole.XmlRpc/1.0.0": {
+        "runtime": {
+          "flconsole.XmlRpc.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "flconsole.Console/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "flconsole.XmlRpc/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

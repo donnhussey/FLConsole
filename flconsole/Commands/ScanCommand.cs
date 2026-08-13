@@ -1,10 +1,10 @@
 using System.Globalization;
 using System.IO;
-using flconsole.Models;
+using flconsole.XmlRpc.Models;
 
 namespace flconsole.Commands;
 
-public sealed class ScanCommand(XmlRpcClient client, ScanCommandSettings? settings = null) : ICommand<IReadOnlyList<string>>
+public sealed class ScanCommand(FLDigi _fldigi, ScanCommandSettings? settings = null) : ICommand<IReadOnlyList<string>>
 {
     private static readonly NumberFormatInfo DotGroupedIntegerFormat = new()
     {
@@ -63,14 +63,14 @@ public sealed class ScanCommand(XmlRpcClient client, ScanCommandSettings? settin
 
     private async Task TakeControlAsync()
     {
-        await SendRequestAsync("rig.take_control");
+        await _fldigi.Rig.TakeControlAsync();
     }
 
     private async Task<ScanSessionState> CaptureOriginalStateAsync()
     {
-        var modemName = await GetStringValueAsync("modem.get_name");
-        var dialFrequency = await GetDoubleValueAsync("rig.get_frequency");
-        var carrierOffset = await GetDoubleValueAsync("modem.get_carrier");
+        var modemName = await _fldigi.Modem.GetNameAsync();
+        var dialFrequency = await _fldigi.Rig.GetFrequencyAsync();
+        var carrierOffset = await _fldigi.Modem.GetCarrierAsync();
         return new ScanSessionState(modemName, dialFrequency, carrierOffset);
     }
 
@@ -78,20 +78,20 @@ public sealed class ScanCommand(XmlRpcClient client, ScanCommandSettings? settin
     {
         if (!string.IsNullOrWhiteSpace(state.ModemName))
         {
-            await TrySendRequestAsync("modem.set_by_name", state.ModemName);
+            await TrySendAsync(() => _fldigi.Modem.SetByNameAsync(state.ModemName));
         }
 
-        await TrySendRequestAsync("rig.set_frequency", state.DialFrequencyHz);
+        await TrySendAsync(() => _fldigi.Rig.SetFrequencyAsync(state.DialFrequencyHz));
 
         if (IsCarrierOffsetInRange(state.CarrierOffsetHz))
         {
-            await TrySendRequestAsync("modem.set_carrier", ToCarrierOffsetInt(state.CarrierOffsetHz));
+            await TrySendAsync(() => _fldigi.Modem.SetCarrierAsync(ToCarrierOffsetInt(state.CarrierOffsetHz)));
         }
     }
 
     private async Task SetModemByNameAsync(string modemName)
     {
-        await SendRequestAsync("modem.set_by_name", modemName);
+        await _fldigi.Modem.SetByNameAsync(modemName);
     }
 
     private async Task SweepCarrierOffsetsAsync(CommandStreamBuffer output, double dialFrequency, double qualityThreshold, bool debugMode)
@@ -99,17 +99,17 @@ public sealed class ScanCommand(XmlRpcClient client, ScanCommandSettings? settin
         for (var carrierOffset = LowerCarrierOffsetHz; carrierOffset <= UpperCarrierOffsetHz; carrierOffset += CarrierStepHz)
         {
             var validCarrierOffset = EnsureValidCarrierOffset(carrierOffset);
-            await SendRequestAsync("modem.set_carrier", ToCarrierOffsetInt(validCarrierOffset));
+            await _fldigi.Modem.SetCarrierAsync(ToCarrierOffsetInt(validCarrierOffset));
 
             await Task.Delay(_frequencySettleDelay);
 
             if (debugMode)
             {
-                var carrierReadback = EnsureValidCarrierOffset(await GetDoubleValueAsync("modem.get_carrier"));
+                var carrierReadback = EnsureValidCarrierOffset(await _fldigi.Modem.GetCarrierAsync());
                 await output.WriteLineAsync($"Carrier requested={validCarrierOffset.ToString("0.###", CultureInfo.InvariantCulture)} Hz readback={carrierReadback.ToString("0.###", CultureInfo.InvariantCulture)} Hz");
             }
 
-            var quality = await GetDoubleValueAsync("modem.get_quality");
+            var quality = await _fldigi.Modem.GetQualityAsync();
             var reportedFrequency = dialFrequency + validCarrierOffset;
             if (debugMode)
             {
@@ -173,36 +173,15 @@ public sealed class ScanCommand(XmlRpcClient client, ScanCommandSettings? settin
         return true;
     }
 
-    private async Task<double> GetDoubleValueAsync(string methodName)
-    {
-        var response = await SendRequestAsync(methodName);
-        return CommandRpcValueReader.ReadDoubleOrThrow(response.Value, methodName);
-    }
-
-    private async Task<string> GetStringValueAsync(string methodName)
-    {
-        var response = await SendRequestAsync(methodName);
-        return CommandRpcValueReader.ReadStringOrThrow(response.Value, methodName);
-    }
-
-    private async Task TrySendRequestAsync(string methodName, params object[] parameters)
+    private static async Task TrySendAsync(Func<Task<object?>> operation)
     {
         try
         {
-            await SendRequestAsync(methodName, parameters);
+            await operation();
         }
         catch
         {
         }
-    }
-
-    private async Task<XmlRpcResponse> SendRequestAsync(string methodName, params object[] parameters)
-    {
-        return await client.SendAsync(new XmlRpcRequest
-        {
-            MethodName = methodName,
-            Parameters = [.. parameters]
-        });
     }
 
     private static int ToCarrierOffsetInt(double carrierOffset)

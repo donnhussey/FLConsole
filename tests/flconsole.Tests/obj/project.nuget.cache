@@ -1,9 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "oogmKZ89BJc=",
+  "dgSpecHash": "6cuYpjOVtU0=",
   "success": true,
   "projectFilePath": "/home/donn/flconsole/tests/flconsole.Tests/flconsole.Tests.csproj",
   "expectedPackageFiles": [
+    "/home/donn/.nuget/packages/coverlet.collector/6.0.4/coverlet.collector.6.0.4.nupkg.sha512",
     "/home/donn/.nuget/packages/microsoft.codecoverage/17.12.0/microsoft.codecoverage.17.12.0.nupkg.sha512",
     "/home/donn/.nuget/packages/microsoft.extensions.configuration/9.0.0/microsoft.extensions.configuration.9.0.0.nupkg.sha512",
     "/home/donn/.nuget/packages/microsoft.extensions.configuration.abstractions/9.0.0/microsoft.extensions.configuration.abstractions.9.0.0.nupkg.sha512",

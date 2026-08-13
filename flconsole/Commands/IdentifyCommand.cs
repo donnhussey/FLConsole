@@ -1,10 +1,10 @@
 using System.Globalization;
 using System.IO;
-using flconsole.Models;
+using flconsole.XmlRpc.Models;
 
 namespace flconsole.Commands;
 
-public sealed class IdentifyCommand(XmlRpcClient client, IdentifyCommandSettings? settings = null) : ICommand<IReadOnlyList<string>>
+public sealed class IdentifyCommand(FLDigi _fldigi, IdentifyCommandSettings? settings = null) : ICommand<IReadOnlyList<string>>
 {
     private const double MinCarrierOffsetHz = 1;
     private const double MaxCarrierOffsetHz = 3000;
@@ -37,12 +37,12 @@ public sealed class IdentifyCommand(XmlRpcClient client, IdentifyCommandSettings
 
             try
             {
-                originalModemName = await GetStringValueAsync("modem.get_name");
-                originalRsidEnabled = await GetBooleanValueAsync("main.get_rsid");
+                originalModemName = await _fldigi.Modem.GetNameAsync();
+                originalRsidEnabled = await _fldigi.Main.GetRsidAsync();
 
-                await SendRequestAsync("rig.take_control");
-                var currentDialFrequency = await GetDoubleValueAsync("rig.get_frequency");
-                var currentCarrierOffset = await GetDoubleValueAsync("modem.get_carrier");
+                await _fldigi.Rig.TakeControlAsync();
+                var currentDialFrequency = await _fldigi.Rig.GetFrequencyAsync();
+                var currentCarrierOffset = await _fldigi.Modem.GetCarrierAsync();
                 var signalFrequency = currentDialFrequency + currentCarrierOffset;
                 var centeredDialFrequency = signalFrequency - ModemCarrierOffset;
 
@@ -55,7 +55,7 @@ public sealed class IdentifyCommand(XmlRpcClient client, IdentifyCommandSettings
 
                 if (!originalRsidEnabled)
                 {
-                    await SendRequestAsync("main.set_rsid", true);
+                    await _fldigi.Main.SetRsidAsync(true);
                 }
 
                 var rsidResult = await TryIdentifyByRsidAsync(originalModemName, listenSeconds);
@@ -65,7 +65,7 @@ public sealed class IdentifyCommand(XmlRpcClient client, IdentifyCommandSettings
                     return;
                 }
 
-                var currentQuality = await GetDoubleValueAsync("modem.get_quality");
+                var currentQuality = await _fldigi.Modem.GetQualityAsync();
                 if (currentQuality < MinimumQualityToIdentify)
                 {
                     await output.WriteAsync($"nothing to identify, quality was {currentQuality.ToString("0.###", CultureInfo.InvariantCulture)}");
@@ -73,7 +73,7 @@ public sealed class IdentifyCommand(XmlRpcClient client, IdentifyCommandSettings
                 }
 
                 await output.WriteLineAsync("No RSID modem switch detected; running heuristic modem sweep.");
-                var availableModems = await GetStringArrayValueAsync("modem.get_names");
+                var availableModems = await _fldigi.Modem.GetNamesAsync();
                 var modemCandidates = ResolveModemCandidates(availableModems, useAllModems);
                 var candidates = await RankCandidatesAsync(modemCandidates, topCandidates, verbose, output);
 
@@ -91,7 +91,7 @@ public sealed class IdentifyCommand(XmlRpcClient client, IdentifyCommandSettings
                 }
 
                 var bestCandidate = candidates[0];
-                await SendRequestAsync("modem.set_by_name", bestCandidate.ModemName);
+                await _fldigi.Modem.SetByNameAsync(bestCandidate.ModemName);
                 await output.WriteAsync($"Selected modem: {bestCandidate.ModemName}");
             }
             catch (Exception ex)
@@ -102,7 +102,7 @@ public sealed class IdentifyCommand(XmlRpcClient client, IdentifyCommandSettings
             {
                 try
                 {
-                    await SendRequestAsync("main.set_rsid", originalRsidEnabled);
+                    await _fldigi.Main.SetRsidAsync(originalRsidEnabled);
                 }
                 catch
                 {
@@ -112,7 +112,7 @@ public sealed class IdentifyCommand(XmlRpcClient client, IdentifyCommandSettings
                 {
                     try
                     {
-                        await SendRequestAsync("modem.set_by_name", originalModemName);
+                        await _fldigi.Modem.SetByNameAsync(originalModemName);
                     }
                     catch
                     {
@@ -195,8 +195,8 @@ public sealed class IdentifyCommand(XmlRpcClient client, IdentifyCommandSettings
                 await Task.Delay(RsidSampleInterval);
             }
 
-            var currentModem = await GetStringValueAsync("modem.get_name");
-            var quality = await GetDoubleValueAsync("modem.get_quality");
+            var currentModem = await _fldigi.Modem.GetNameAsync();
+            var quality = await _fldigi.Modem.GetQualityAsync();
             if (!string.Equals(currentModem, initialModemName, StringComparison.OrdinalIgnoreCase) && quality > 0)
             {
                 return new RsidDetectionResult(currentModem, quality);
@@ -210,9 +210,9 @@ public sealed class IdentifyCommand(XmlRpcClient client, IdentifyCommandSettings
     {
         var validCarrierOffset = EnsureValidCarrierOffset(carrierOffset);
 
-        await SendRequestAsync("rig.set_frequency", dialFrequency);
+        await _fldigi.Rig.SetFrequencyAsync(dialFrequency);
         await Task.Delay(FrequencyCarrierSettleDelay);
-        await SendRequestAsync("modem.set_carrier", validCarrierOffset);
+        await _fldigi.Modem.SetCarrierAsync(validCarrierOffset);
         await Task.Delay(FrequencyCarrierSettleDelay);
     }
 
@@ -232,11 +232,11 @@ public sealed class IdentifyCommand(XmlRpcClient client, IdentifyCommandSettings
 
         foreach (var modemName in modemCandidates)
         {
-            await SendRequestAsync("modem.set_by_name", modemName);
+            await _fldigi.Modem.SetByNameAsync(modemName);
             await Task.Delay(ModeSettleDelay);
             await Task.Delay(HeuristicQualitySampleDelay);
 
-            var quality = await GetDoubleValueAsync("modem.get_quality");
+            var quality = await _fldigi.Modem.GetQualityAsync();
             var rxText = await GetRxTextAsync();
             var textSignalScore = GetTextSignalScore(rxText);
             var score = quality + textSignalScore;
@@ -285,13 +285,13 @@ public sealed class IdentifyCommand(XmlRpcClient client, IdentifyCommandSettings
 
     private async Task<string> GetRxTextAsync()
     {
-        var response = await SendRequestAsync("rx.get_data");
-        return response.Value switch
+        var response = await _fldigi.Rx.GetDataAsync();
+        return response switch
         {
             null => string.Empty,
             byte[] bytes => Encoding.UTF8.GetString(bytes),
             string text => text,
-            _ => XmlRpcValueHelper.FormatValue(response.Value)
+            _ => XmlRpcValueHelper.FormatValue(response)
         };
     }
 
@@ -311,39 +311,6 @@ public sealed class IdentifyCommand(XmlRpcClient client, IdentifyCommandSettings
         var printable = trimmed.Count(ch => char.IsLetterOrDigit(ch) || char.IsPunctuation(ch) || char.IsWhiteSpace(ch));
         var printableRatio = printable / (double)trimmed.Length;
         return printableRatio * 20;
-    }
-
-    private async Task<string> GetStringValueAsync(string methodName)
-    {
-        var response = await SendRequestAsync(methodName);
-        return CommandRpcValueReader.ReadStringOrThrow(response.Value, methodName);
-    }
-
-    private async Task<double> GetDoubleValueAsync(string methodName)
-    {
-        var response = await SendRequestAsync(methodName);
-        return CommandRpcValueReader.ReadDoubleOrThrow(response.Value, methodName);
-    }
-
-    private async Task<bool> GetBooleanValueAsync(string methodName)
-    {
-        var response = await SendRequestAsync(methodName);
-        return CommandRpcValueReader.ReadBooleanOrThrow(response.Value, methodName);
-    }
-
-    private async Task<IReadOnlyList<string>> GetStringArrayValueAsync(string methodName)
-    {
-        var response = await SendRequestAsync(methodName);
-        return CommandRpcValueReader.ReadStringListOrThrow(response.Value, methodName);
-    }
-
-    private Task<XmlRpcResponse> SendRequestAsync(string methodName, params object[] parameters)
-    {
-        return client.SendAsync(new XmlRpcRequest
-        {
-            MethodName = methodName,
-            Parameters = parameters.Cast<object?>().ToList()
-        });
     }
 
     private sealed record ModeCandidate(string ModemName, double Score, double Quality);

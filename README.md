@@ -193,12 +193,14 @@ flowchart LR
 
 ### XML-RPC Layer
 
-- `flconsole/XmlRpcClient.cs`
+- `flconsole.XmlRpc/XmlRpcClient.cs`
   - HTTP XML-RPC transport to FLDigi.
-- `flconsole/XmlRpcSerializer.cs`
+- `flconsole.XmlRpc/XmlRpcSerializer.cs`
   - Request serialization and response deserialization.
-- `flconsole/Models/*`
+- `flconsole.XmlRpc/Models/*`
   - XML-RPC object model (`XmlRpcRequest`, `XmlRpcResponse`, typed values, helpers).
+- `flconsole.XmlRpc/flconsole.XmlRpc.csproj`
+  - Reusable library containing the FLDigi XML-RPC client, serializer, connection settings, and models.
 
 ### Root Runner Convenience Project
 

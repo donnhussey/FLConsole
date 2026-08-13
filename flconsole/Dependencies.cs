@@ -8,6 +8,8 @@ public static class ServiceCollectionExtensions
     private const string DefaultHost = "127.0.0.1";
     private const int DefaultPort = 7362;
     private const string DefaultPromptPrefix = "flconsole > ";
+    private const string DefaultUnknownCommandFormat = "Unknown command: {0}. Type 'help' for commands.";
+    private const string DefaultExecutionErrorFormat = "Error: {0}";
     private const int DefaultMaxLines = 500;
     private const int DefaultScanSettleDelayMilliseconds = ScanCommandSettings.DefaultSettleDelayMilliseconds;
 
@@ -15,40 +17,34 @@ public static class ServiceCollectionExtensions
     {
         var (host, port) = ReadXmlRpcSettings(configuration);
         var connectionSettings = new XmlRpcConnectionSettings(host, port);
-        var consoleUiSettings = new ConsoleUiSettings(DefaultPromptPrefix, DefaultMaxLines);
+        var shellMessages = new ShellMessages(DefaultUnknownCommandFormat, DefaultExecutionErrorFormat);
         var scanCommandSettings = ReadScanCommandSettings(configuration);
         var identifyCommandSettings = ReadIdentifyCommandSettings(configuration);
 
         services.AddSingleton(connectionSettings);
-        services.AddSingleton(consoleUiSettings);
+        services.AddSingleton(shellMessages);
         services.AddSingleton(scanCommandSettings);
         services.AddSingleton(identifyCommandSettings);
+        services.AddSingleton<HttpClient>();
         services.AddSingleton(provider =>
         {
             var settings = provider.GetRequiredService<XmlRpcConnectionSettings>();
-            return new XmlRpcClient(settings.Host, settings.Port);
+            var httpClient = provider.GetRequiredService<HttpClient>();
+            return new FLDigi(settings, httpClient);
         });
-        services.AddSingleton(provider =>
-        {
-            var settings = provider.GetRequiredService<ConsoleUiSettings>();
-            return new ConsoleOutputBuffer(settings.MaxLines);
-        });
-        services.AddSingleton<IConsoleFacade, SystemConsoleFacade>();
-        services.AddSingleton<IConsoleInput, SystemConsoleInput>();
-        services.AddSingleton<IRenderer, ConsoleRenderer>();
-        services.AddSingleton<ConsolePromptHandler>();
-        services.AddSingleton<IPromptReader>(provider => provider.GetRequiredService<ConsolePromptHandler>());
-        services.AddSingleton<IPromptState>(provider => provider.GetRequiredService<ConsolePromptHandler>());
+        services.AddSingleton<IConsole>(_ => ConsoleFactory.Create(DefaultPromptPrefix, DefaultMaxLines));
+        services.AddSingleton(provider => provider.GetRequiredService<IConsole>().Display);
+        services.AddSingleton(provider => provider.GetRequiredService<IConsole>().CommandSource);
         services.AddSingleton<CommandDisplayRunner>();
         services.AddSingleton<ICommand<IReadOnlyList<string>>, HelpCommand>();
         services.AddSingleton<ICommand<IReadOnlyList<string>>, ClearCommand>();
         services.AddSingleton<ICommand<IReadOnlyList<string>>, QuitCommand>();
-        services.AddSingleton<ICommand<IReadOnlyList<string>>, AdjustCommand>();
-        services.AddSingleton<ICommand<IReadOnlyList<string>>, SetCommand>();
-        services.AddSingleton<ICommand<IReadOnlyList<string>>, ScanCommand>();
-        services.AddSingleton<ICommand<IReadOnlyList<string>>, MonitorCommand>();
-        services.AddSingleton<ICommand<IReadOnlyList<string>>, IdentifyCommand>();
-        services.AddSingleton<ICommand<IReadOnlyList<string>>, MethodCallCommand>();
+        services.AddSingleton<ICommand<IReadOnlyList<string>>, AdjustCommand>(provider => new AdjustCommand(provider.GetRequiredService<FLDigi>()));
+        services.AddSingleton<ICommand<IReadOnlyList<string>>, SetCommand>(provider => new SetCommand(provider.GetRequiredService<FLDigi>()));
+        services.AddSingleton<ICommand<IReadOnlyList<string>>, ScanCommand>(provider => new ScanCommand(provider.GetRequiredService<FLDigi>()));
+        services.AddSingleton<ICommand<IReadOnlyList<string>>, MonitorCommand>(provider => new MonitorCommand(provider.GetRequiredService<FLDigi>()));
+        services.AddSingleton<ICommand<IReadOnlyList<string>>, IdentifyCommand>(provider => new IdentifyCommand(provider.GetRequiredService<FLDigi>()));
+        services.AddSingleton<ICommand<IReadOnlyList<string>>, MethodCallCommand>(provider => new MethodCallCommand(provider.GetRequiredService<FLDigi>()));
         services.AddSingleton<ICommandResolver<IReadOnlyList<string>>, CommandResolver<IReadOnlyList<string>>>();
         services.AddSingleton<FlConsoleShellController>();
         services.AddSingleton<IShellController>(provider => provider.GetRequiredService<FlConsoleShellController>());

@@ -71,38 +71,18 @@ public class ConsoleUiClassesTests
     }
 
     [Fact]
-    public void ConsolePromptHandler_TracksCurrentTextAndCursor()
+    public void PromptEditor_TracksTextAndCursor()
     {
-        var renderer = new FakePromptAreaRenderer();
-        var handler = new ConsolePromptHandler(renderer, new EnterOnlyConsoleInput());
+        var editor = new PromptEditor();
 
-        handler.StartEditing();
+        editor.Apply(new ConsoleKeyInfo('h', ConsoleKey.H, false, false, false));
+        editor.Apply(new ConsoleKeyInfo('e', ConsoleKey.E, false, false, false));
+        editor.Apply(new ConsoleKeyInfo('l', ConsoleKey.L, false, false, false));
+        editor.Apply(new ConsoleKeyInfo('l', ConsoleKey.L, false, false, false));
+        editor.Apply(new ConsoleKeyInfo('o', ConsoleKey.O, false, false, false));
 
-        Assert.Equal(string.Empty, handler.CurrentText);
-        Assert.Equal(0, handler.CurrentCursorIndex);
-        Assert.Equal(string.Empty, renderer.LastPromptText);
-        Assert.Equal(0, renderer.LastCursorIndex);
-
-        handler.UpdateState("hello", 3);
-
-        Assert.Equal("hello", handler.CurrentText);
-        Assert.Equal(3, handler.CurrentCursorIndex);
-        Assert.Equal("hello", renderer.LastPromptText);
-        Assert.Equal(3, renderer.LastCursorIndex);
+        Assert.Equal("hello", editor.Text);
+        Assert.Equal(5, editor.CursorIndex);
     }
 
-    [Fact]
-    public void ConsolePromptHandler_StopEditing_SetsInactiveAndRendersCurrentState()
-    {
-        var renderer = new FakePromptAreaRenderer();
-        var handler = new ConsolePromptHandler(renderer, new EnterOnlyConsoleInput());
-
-        handler.StartEditing();
-        handler.UpdateState("abc", 2);
-        handler.StopEditing();
-
-        Assert.False(handler.IsActive);
-        Assert.Equal("abc", renderer.LastPromptText);
-        Assert.Equal(2, renderer.LastCursorIndex);
-    }
 }

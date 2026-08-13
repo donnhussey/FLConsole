@@ -12,4 +12,6 @@ global using System.Threading.Tasks;
 global using System.Xml;
 global using System.Xml.Linq;
 global using flconsole.Commands;
-global using flconsole.Models;
+global using flconsole.Console;
+global using flconsole.XmlRpc;
+global using flconsole.XmlRpc.Models;

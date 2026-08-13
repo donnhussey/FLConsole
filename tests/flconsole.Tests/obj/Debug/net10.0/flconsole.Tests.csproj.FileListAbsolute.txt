@@ -128,3 +128,8 @@
 /home/donn/flconsole/tests/flconsole.Tests/bin/Debug/net10.0/Microsoft.Extensions.FileProviders.Physical.dll
 /home/donn/flconsole/tests/flconsole.Tests/bin/Debug/net10.0/Microsoft.Extensions.FileSystemGlobbing.dll
 /home/donn/flconsole/tests/flconsole.Tests/bin/Debug/net10.0/Microsoft.Extensions.Primitives.dll
+/home/donn/flconsole/tests/flconsole.Tests/bin/Debug/net10.0/flconsole.XmlRpc.dll
+/home/donn/flconsole/tests/flconsole.Tests/bin/Debug/net10.0/flconsole.XmlRpc.pdb
+/home/donn/flconsole/tests/flconsole.Tests/bin/Debug/net10.0/flconsole.Console.dll
+/home/donn/flconsole/tests/flconsole.Tests/bin/Debug/net10.0/flconsole.Console.pdb
+/home/donn/flconsole/tests/flconsole.Tests/bin/Debug/net10.0/CoverletSourceRootsMapping_flconsole.Tests

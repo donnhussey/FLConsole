@@ -1,10 +1,10 @@
 using System.Globalization;
 using System.IO;
-using flconsole.Models;
+using flconsole.XmlRpc.Models;
 
 namespace flconsole.Commands;
 
-public class SetCommand(XmlRpcClient client) : ICommand<IReadOnlyList<string>>
+public class SetCommand(FLDigi _fldigi) : ICommand<IReadOnlyList<string>>
 {
     private const double MinCarrierOffsetHz = 1;
     private const double MaxCarrierOffsetHz = 3000;
@@ -29,10 +29,10 @@ public class SetCommand(XmlRpcClient client) : ICommand<IReadOnlyList<string>>
             var rigMode = arguments[1];
             var modemName = arguments[2];
 
-            await SendRequestAsync("rig.take_control");
+            await _fldigi.Rig.TakeControlAsync();
             await SetFrequencyAndCarrierAsync(double.Parse(frequency, CultureInfo.InvariantCulture) - ModemCarrierOffset, ModemCarrierOffset);
-            await SendRequestAsync("rig.set_mode", rigMode);
-            await SendRequestAsync("modem.set_by_name", modemName);
+            await _fldigi.Rig.SetModeAsync(rigMode);
+            await _fldigi.Modem.SetByNameAsync(modemName);
 
             return CommandTextStream.Create($"Set frequency={frequency}, rigMode={rigMode}, modem={modemName}");
         }
@@ -46,22 +46,13 @@ public class SetCommand(XmlRpcClient client) : ICommand<IReadOnlyList<string>>
     {
         var validCarrierOffset = EnsureValidCarrierOffset(carrierOffset);
 
-        await SendRequestAsync("rig.set_frequency", dialFrequency);
+        await _fldigi.Rig.SetFrequencyAsync(dialFrequency);
 
         await Task.Delay(FrequencyCarrierSettleDelay);
 
-        await SendRequestAsync("modem.set_carrier", validCarrierOffset);
+        await _fldigi.Modem.SetCarrierAsync(validCarrierOffset);
 
         await Task.Delay(FrequencyCarrierSettleDelay);
-    }
-
-    private Task<XmlRpcResponse> SendRequestAsync(string methodName, params object[] parameters)
-    {
-        return client.SendAsync(new XmlRpcRequest
-        {
-            MethodName = methodName,
-            Parameters = [.. parameters]
-        });
     }
 
     private static double EnsureValidCarrierOffset(double carrierOffset)

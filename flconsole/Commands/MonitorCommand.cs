@@ -1,10 +1,10 @@
 using System.IO;
 using System.Text;
-using flconsole.Models;
+using flconsole.XmlRpc.Models;
 
 namespace flconsole.Commands;
 
-public sealed class MonitorCommand(XmlRpcClient client) : ICommand<IReadOnlyList<string>>
+public sealed class MonitorCommand(FLDigi _fldigi) : ICommand<IReadOnlyList<string>>
 {
     public string CommandName => "monitor";
     public bool Repeat => true;
@@ -15,13 +15,9 @@ public sealed class MonitorCommand(XmlRpcClient client) : ICommand<IReadOnlyList
     {
         try
         {
-            var response = await client.SendAsync(new XmlRpcRequest
-            {
-                MethodName = "rx.get_data",
-                Parameters = []
-            });
+            var response = await _fldigi.Rx.GetDataAsync();
 
-            var payload = response.Value;
+            var payload = response;
             var text = payload is null
                 ? "null"
                 : payload is byte[] bytes

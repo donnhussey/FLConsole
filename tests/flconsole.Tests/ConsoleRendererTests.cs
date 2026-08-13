@@ -1,12 +1,12 @@
 namespace flconsole.Tests;
 
-public class ConsoleRendererTests
+public class ConsoleDisplayTests
 {
     [Fact]
     public void Clear_CallsConsoleClear()
     {
         var console = new FakeConsoleFacade { WindowWidth = 10, WindowHeight = 4 };
-        var renderer = new ConsoleRenderer(new ConsoleUiSettings("fl > ", 10), console);
+        var renderer = new ConsoleDisplay("fl > ", 10, console);
 
         renderer.Clear();
 
@@ -17,11 +17,11 @@ public class ConsoleRendererTests
     public void RenderOutput_ClearsRowsAndWrapsLines()
     {
         var console = new FakeConsoleFacade { WindowWidth = 5, WindowHeight = 4 };
-        var renderer = new ConsoleRenderer(new ConsoleUiSettings("fl > ", 10), console);
+        var renderer = new ConsoleDisplay("fl > ", 10, console);
         var buffer = new ConsoleOutputBuffer(MaxLines: 10);
         buffer.AddLine("abcdef");
 
-        renderer.RenderOutput(buffer);
+        renderer.AppendText("abcdef");
 
         Assert.Contains("abcde", console.Writes);
         Assert.Contains("f", console.Writes);
@@ -34,16 +34,16 @@ public class ConsoleRendererTests
     public void RenderInput_WritesPromptAndClampsCursor()
     {
         var console = new FakeConsoleFacade { WindowWidth = 10, WindowHeight = 4 };
-        var renderer = new ConsoleRenderer(new ConsoleUiSettings("p> ", 10), console);
+        var renderer = new ConsoleDisplay("p> ", 10, console);
 
-        renderer.RenderInput("hello", 99);
+        renderer.ShowPrompt("hello", 99);
 
         Assert.Contains("p> hello", console.Writes);
         Assert.Contains(new CursorMove(0, 3), console.CursorMoves);
         Assert.Contains(new CursorMove(8, 3), console.CursorMoves);
     }
 
-    private sealed class FakeConsoleFacade : IConsoleFacade
+    private sealed class FakeConsoleFacade : IConsoleTerminal
     {
         public int WindowHeight { get; set; }
         public int WindowWidth { get; set; }

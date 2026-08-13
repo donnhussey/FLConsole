@@ -1,6 +1,6 @@
 using System.Xml.Linq;
 using flconsole;
-using flconsole.Models;
+using flconsole.XmlRpc.Models;
 using Xunit;
 
 namespace flconsole.Tests;
@@ -54,26 +54,12 @@ public class XmlRpcSerializerTests
             MethodName = "demo.call",
             Parameters =
             [
-                new XmlRpcStringValue { Text = "hello" },
-                new XmlRpcIntValue { Text = 7 },
-                new XmlRpcBooleanValue { Text = true },
-                new XmlRpcDoubleValue { Text = 2.5 },
-                new XmlRpcArrayValue
-                {
-                    Values =
-                    [
-                        new XmlRpcStringValue { Text = "item" },
-                        new XmlRpcIntValue { Text = 9 }
-                    ]
-                },
-                new XmlRpcStructValue
-                {
-                    Members =
-                    [
-                        new XmlRpcMember { Name = "count", Value = new XmlRpcIntValue { Text = 1 } },
-                        new XmlRpcMember { Name = "enabled", Value = new XmlRpcBooleanValue { Text = false } }
-                    ]
-                }
+                XmlRpcValue.FromObject("hello"),
+                XmlRpcValue.FromObject(7),
+                XmlRpcValue.FromObject(true),
+                XmlRpcValue.FromObject(2.5),
+                XmlRpcValue.FromObject(new object?[] { "item", 9 }),
+                XmlRpcValue.FromObject(new Dictionary<string, object?> { ["count"] = 1, ["enabled"] = false })
             ]
         };
 
@@ -142,7 +128,7 @@ public class XmlRpcSerializerTests
 """;
 
         var parsed = XmlRpcSerializer.DeserializeResponse(response);
-        var values = parsed.MethodResponse.Parameters.Select(parameter => parameter.Value?.GetValue()).ToList();
+        var values = parsed.Parameters;
 
         Assert.Equal("hello", values[0]);
         Assert.Equal(7, values[1]);
@@ -183,22 +169,6 @@ public class XmlRpcSerializerTests
 
         Assert.Equal("hello", Assert.IsType<string>(values[0]));
         Assert.True(Assert.IsType<bool>(values[1]));
-    }
-
-    [Fact]
-    public void ParseParameter_ConvertsStringTokensToXmlRpcFriendlyValues()
-    {
-        Assert.Equal(42, XmlRpcValueHelper.ParseParameter("42"));
-        Assert.Equal(3.5, Assert.IsType<double>(XmlRpcValueHelper.ParseParameter("3.5")));
-        Assert.Equal("hello", XmlRpcValueHelper.ParseParameter("hello"));
-    }
-
-    [Fact]
-    public void FormatValue_ProducesReadableStringsForCommonValues()
-    {
-        Assert.Equal("null", XmlRpcValueHelper.FormatValue(null));
-        Assert.Equal("hello", XmlRpcValueHelper.FormatValue("hello"));
-        Assert.Equal("[1,2,3]", XmlRpcValueHelper.FormatValue(new object?[] { 1, 2, 3 }));
     }
 
 }

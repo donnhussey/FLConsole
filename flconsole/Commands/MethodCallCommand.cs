@@ -1,9 +1,9 @@
 using System.IO;
-using flconsole.Models;
+using flconsole.XmlRpc.Models;
 
 namespace flconsole.Commands;
 
-public sealed class MethodCallCommand(XmlRpcClient client) : ICommand<IReadOnlyList<string>>
+public sealed class MethodCallCommand(FLDigi _fldigi) : ICommand<IReadOnlyList<string>>
 {
     public string CommandName => "method";
     public bool Repeat => false;
@@ -21,14 +21,8 @@ public sealed class MethodCallCommand(XmlRpcClient client) : ICommand<IReadOnlyL
         var parameters = request.Skip(1).Select(XmlRpcValueHelper.ParseParameter).ToList();
         try
         {
-            var xmlRpcRequest = new XmlRpcRequest
-            {
-                MethodName = methodName,
-                Parameters = parameters
-            };
-
-            var response = await client.SendAsync(xmlRpcRequest);
-            return CommandTextStream.Create(XmlRpcValueHelper.FormatValue(response.Value));
+            var response = await _fldigi.InvokeAsync(methodName, parameters.ToArray());
+            return CommandTextStream.Create(XmlRpcValueHelper.FormatValue(response));
         }
         catch (Exception ex)
         {

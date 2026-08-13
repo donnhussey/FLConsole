@@ -2,7 +2,7 @@ using System.IO;
 
 namespace flconsole.Commands;
 
-public sealed class ClearCommand(ConsoleOutputBuffer outputBuffer, IRenderer renderer, IPromptState promptState) : ICommand<IReadOnlyList<string>>
+public sealed class ClearCommand(IConsoleDisplay display, ICommandSource commandSource) : ICommand<IReadOnlyList<string>>
 {
     public string CommandName => "clear";
     public bool Repeat => false;
@@ -11,10 +11,9 @@ public sealed class ClearCommand(ConsoleOutputBuffer outputBuffer, IRenderer ren
 
     public Task<Stream> ExecuteAsync(IReadOnlyList<string> request)
     {
-        outputBuffer.Clear();
-        renderer.Clear();
-        renderer.RenderOutput(outputBuffer);
-        renderer.RenderInput(promptState.CurrentText, promptState.CurrentCursorIndex);
+        display.Clear();
+        var prompt = commandSource.PromptState;
+        display.ShowPrompt(prompt.Text, prompt.CursorIndex);
         return Task.FromResult<Stream>(CommandTextStream.Create(string.Empty));
     }
 }

@@ -4,6 +4,7 @@ namespace flconsole.Tests;
 
 public class CommandDisplayRunnerTests
 {
+    private static readonly ShellMessages TestMessages = new("Unknown command: {0}. Type 'help' for commands.", "Error: {0}");
     [Fact]
     public async Task StopAsync_WhenNotStarted_ReturnsCleanly()
     {
@@ -24,8 +25,8 @@ public class CommandDisplayRunnerTests
 
         Assert.Equal(1, command.ExecuteCount);
         Assert.Equal(["once", string.Empty], outputBuffer.GetVisibleLines(10));
-        Assert.True(renderer.RenderOutputCallCount >= 1);
-        Assert.True(renderer.RenderInputCallCount >= 1);
+        Assert.True(renderer.AppendTextCallCount >= 1);
+        Assert.True(renderer.ShowPromptCallCount >= 1);
     }
 
     [Fact]
@@ -127,9 +128,9 @@ public class CommandDisplayRunnerTests
     private static CommandDisplayRunner CreateRunner(out RunnerTestRenderer renderer, out ConsoleOutputBuffer outputBuffer)
     {
         renderer = new RunnerTestRenderer();
-        outputBuffer = new ConsoleOutputBuffer(MaxLines: 20);
+        outputBuffer = renderer.OutputBuffer;
         var promptHandler = new ConsolePromptHandler(renderer, new EnterOnlyConsoleInput());
-        return new CommandDisplayRunner(renderer, outputBuffer, promptHandler);
+        return new CommandDisplayRunner(renderer, promptHandler, TestMessages);
     }
 
     private static async Task WaitUntilAsync(Func<bool> predicate)
@@ -146,23 +147,31 @@ public class CommandDisplayRunnerTests
         }
     }
 
-    private sealed class RunnerTestRenderer : IRenderer
+    private sealed class RunnerTestRenderer : IConsoleDisplay
     {
-        public int RenderOutputCallCount { get; private set; }
-        public int RenderInputCallCount { get; private set; }
+        public ConsoleOutputBuffer OutputBuffer { get; } = new(MaxLines: 20);
+        public int AppendTextCallCount { get; private set; }
+        public int ShowPromptCallCount { get; private set; }
 
-        public void RenderInput(string promptText, int cursorIndex)
+        public void ShowPrompt(string promptText, int cursorIndex)
         {
-            RenderInputCallCount++;
-        }
-
-        public void RenderOutput(ConsoleOutputBuffer outputBuffer)
-        {
-            RenderOutputCallCount++;
+            ShowPromptCallCount++;
         }
 
         public void Clear()
         {
+            OutputBuffer.Clear();
+        }
+
+        public void AppendText(string text)
+        {
+            AppendTextCallCount++;
+            OutputBuffer.AppendText(text);
+        }
+
+        public void AppendLine(string text)
+        {
+            OutputBuffer.AddLine(text);
         }
     }
 

@@ -5,7 +5,7 @@ namespace flconsole.Tests;
 public class ModelsTests
 {
     [Fact]
-    public void XmlRpcRequest_PropertiesRoundTripThroughMethodCall()
+    public void XmlRpcRequest_PropertiesRoundTrip()
     {
         var request = new XmlRpcRequest
         {
@@ -13,8 +13,8 @@ public class ModelsTests
             Parameters = ["USB", 14074000, true, 2.5]
         };
 
-        Assert.Equal("rig.get_mode", request.MethodCall.MethodName);
-        Assert.Equal(4, request.MethodCall.Parameters.Count);
+        Assert.Equal("rig.get_mode", request.MethodName);
+        Assert.Equal(4, request.Parameters.Count);
         Assert.Equal("USB", request.Parameters[0]);
         Assert.Equal(14074000, request.Parameters[1]);
         Assert.Equal(true, request.Parameters[2]);
@@ -97,11 +97,11 @@ public class ModelsTests
 
         response.Value = 42;
         Assert.Equal(42, response.Value);
-        Assert.Single(response.MethodResponse.Parameters);
+        Assert.Single(response.Parameters);
 
         response.Value = null;
         Assert.Null(response.Value);
-        Assert.Empty(response.MethodResponse.Parameters);
+        Assert.Empty(response.Parameters);
     }
 
     [Fact]
@@ -131,7 +131,7 @@ public class ModelsTests
 
         var parsed = XmlRpcResponse.FromXDocument(document);
 
-        Assert.Empty(parsed.MethodResponse.Parameters);
+        Assert.Empty(parsed.Parameters);
         Assert.Null(parsed.Value);
     }
 
@@ -166,14 +166,6 @@ public class ModelsTests
 
         var structure = Assert.IsType<Dictionary<string, object?>>(value!.GetValue());
         Assert.Equal(string.Empty, Assert.IsType<string>(structure["key"]));
-    }
-
-    [Fact]
-    public void Parameter_FromXml_ReturnsNullWhenValueElementMissing()
-    {
-        var parameter = Parameter.FromXml(XElement.Parse("<param />"));
-
-        Assert.Null(parameter.Value);
     }
 
     private sealed record CustomValue(string Text)

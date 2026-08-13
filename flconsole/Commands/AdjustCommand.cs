@@ -1,10 +1,10 @@
 using System.Globalization;
 using System.IO;
-using flconsole.Models;
+using flconsole.XmlRpc.Models;
 
 namespace flconsole.Commands;
 
-public sealed class AdjustCommand(XmlRpcClient client) : ICommand<IReadOnlyList<string>>
+public sealed class AdjustCommand(FLDigi _fldigi) : ICommand<IReadOnlyList<string>>
 {
     private const double MinCarrierOffsetHz = 1;
     private const double MaxCarrierOffsetHz = 3000;
@@ -29,9 +29,9 @@ public sealed class AdjustCommand(XmlRpcClient client) : ICommand<IReadOnlyList<
 
         try
         {
-            await SendRequestAsync("rig.take_control");
+            await _fldigi.Rig.TakeControlAsync();
 
-            var currentDialFrequency = await GetDoubleValueAsync("rig.get_frequency");
+            var currentDialFrequency = await _fldigi.Rig.GetFrequencyAsync();
             var currentBandLowerBound = currentDialFrequency + LowerCarrierOffsetHz;
             var currentBandUpperBound = currentDialFrequency + UpperCarrierOffsetHz;
 
@@ -61,15 +61,9 @@ public sealed class AdjustCommand(XmlRpcClient client) : ICommand<IReadOnlyList<
         }
     }
 
-    private async Task<double> GetDoubleValueAsync(string methodName)
-    {
-        var response = await SendRequestAsync(methodName);
-        return CommandRpcValueReader.ReadDoubleOrThrow(response.Value, methodName);
-    }
-
     private async Task SetFrequencyAndCarrierAsync(double dialFrequency, double carrierOffset)
     {
-        await SendRequestAsync("rig.set_frequency", dialFrequency);
+        await _fldigi.Rig.SetFrequencyAsync(dialFrequency);
 
         await Task.Delay(FrequencyCarrierSettleDelay);
         await SetCarrierAsync(carrierOffset);
@@ -79,18 +73,9 @@ public sealed class AdjustCommand(XmlRpcClient client) : ICommand<IReadOnlyList<
     {
         var validCarrierOffset = EnsureValidCarrierOffset(carrierOffset);
 
-        await SendRequestAsync("modem.set_carrier", validCarrierOffset);
+        await _fldigi.Modem.SetCarrierAsync(validCarrierOffset);
 
         await Task.Delay(FrequencyCarrierSettleDelay);
-    }
-
-    private Task<XmlRpcResponse> SendRequestAsync(string methodName, params object[] parameters)
-    {
-        return client.SendAsync(new XmlRpcRequest
-        {
-            MethodName = methodName,
-            Parameters = [.. parameters]
-        });
     }
 
     private static double EnsureValidCarrierOffset(double carrierOffset)

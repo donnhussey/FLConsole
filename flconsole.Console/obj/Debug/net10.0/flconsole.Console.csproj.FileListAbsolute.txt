@@ -1,0 +1,16 @@
+/home/donn/flconsole/flconsole.Console/obj/Debug/net10.0/flconsole.Console.csproj.AssemblyReference.cache
+/home/donn/flconsole/flconsole.Console/obj/Debug/net10.0/flconsole.Console.GeneratedMSBuildEditorConfig.editorconfig
+/home/donn/flconsole/flconsole.Console/obj/Debug/net10.0/flconsole.Console.AssemblyInfoInputs.cache
+/home/donn/flconsole/flconsole.Console/obj/Debug/net10.0/flconsole.Console.AssemblyInfo.cs
+/home/donn/flconsole/flconsole.Console/obj/Debug/net10.0/flconsole.Console.csproj.CoreCompileInputs.cache
+/home/donn/flconsole/flconsole.Console/obj/Debug/net10.0/flconsole.Console.sourcelink.json
+/home/donn/flconsole/flconsole.Console/bin/Debug/net10.0/flconsole.Console.deps.json
+/home/donn/flconsole/flconsole.Console/bin/Debug/net10.0/flconsole.Console.dll
+/home/donn/flconsole/flconsole.Console/bin/Debug/net10.0/flconsole.Console.pdb
+/home/donn/flconsole/flconsole.Console/bin/Debug/net10.0/flconsole.XmlRpc.dll
+/home/donn/flconsole/flconsole.Console/bin/Debug/net10.0/flconsole.XmlRpc.pdb
+/home/donn/flconsole/flconsole.Console/obj/Debug/net10.0/flconsol.36F91A8A.Up2Date
+/home/donn/flconsole/flconsole.Console/obj/Debug/net10.0/flconsole.Console.dll
+/home/donn/flconsole/flconsole.Console/obj/Debug/net10.0/refint/flconsole.Console.dll
+/home/donn/flconsole/flconsole.Console/obj/Debug/net10.0/flconsole.Console.pdb
+/home/donn/flconsole/flconsole.Console/obj/Debug/net10.0/ref/flconsole.Console.dll

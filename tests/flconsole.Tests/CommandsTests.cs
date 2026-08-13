@@ -16,13 +16,12 @@ public class CommandsTests
         Assert.Equal(TimeSpan.Zero, new HelpCommand().RepeatInterval);
         Assert.False(new HelpCommand().StopsShell);
 
-        var clearBuffer = new ConsoleOutputBuffer();
         var clearRenderer = new FakePromptAreaRenderer();
         var clearPromptHandler = new ConsolePromptHandler(clearRenderer, new EnterOnlyConsoleInput());
-        Assert.Equal("clear", new ClearCommand(clearBuffer, clearRenderer, clearPromptHandler).CommandName);
-        Assert.False(new ClearCommand(clearBuffer, clearRenderer, clearPromptHandler).Repeat);
-        Assert.Equal(TimeSpan.Zero, new ClearCommand(clearBuffer, clearRenderer, clearPromptHandler).RepeatInterval);
-        Assert.False(new ClearCommand(clearBuffer, clearRenderer, clearPromptHandler).StopsShell);
+        Assert.Equal("clear", new ClearCommand(clearRenderer, clearPromptHandler).CommandName);
+        Assert.False(new ClearCommand(clearRenderer, clearPromptHandler).Repeat);
+        Assert.Equal(TimeSpan.Zero, new ClearCommand(clearRenderer, clearPromptHandler).RepeatInterval);
+        Assert.False(new ClearCommand(clearRenderer, clearPromptHandler).StopsShell);
 
         Assert.Equal("quit", new QuitCommand().CommandName);
         Assert.False(new QuitCommand().Repeat);
@@ -80,16 +79,12 @@ public class CommandsTests
     public async Task ClearCommand_ClearsOutputBuffer_AndReturnsEmptyStream()
     {
         var renderer = new FakePromptAreaRenderer();
-        var outputBuffer = new ConsoleOutputBuffer(MaxLines: 10);
         var promptHandler = new ConsolePromptHandler(renderer, new EnterOnlyConsoleInput());
-        outputBuffer.AddLine("alpha");
-        outputBuffer.AddLine("beta");
-        var command = new ClearCommand(outputBuffer, renderer, promptHandler);
+        var command = new ClearCommand(renderer, promptHandler);
 
         var text = await ReadTextAsync(await command.ExecuteAsync(Array.Empty<string>()));
 
         Assert.Equal(string.Empty, text);
-        Assert.Empty(outputBuffer.GetVisibleLines(10));
     }
 
     [Fact]
@@ -110,8 +105,7 @@ public class CommandsTests
             CreateXmlRpcDoubleResponse(7072500),
             CreateXmlRpcResponseWithoutParams()
         ]);
-        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
-        var command = new AdjustCommand(client);
+        var command = new AdjustCommand(CreateClient(handler));
 
         var text = await ReadTextAsync(await command.ExecuteAsync(["7074000"]));
 
@@ -133,8 +127,7 @@ public class CommandsTests
             CreateXmlRpcResponseWithoutParams(),
             CreateXmlRpcResponseWithoutParams()
         ]);
-        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
-        var command = new AdjustCommand(client);
+        var command = new AdjustCommand(CreateClient(handler));
 
         var text = await ReadTextAsync(await command.ExecuteAsync(["7078000"]));
 
@@ -156,8 +149,7 @@ public class CommandsTests
             CreateXmlRpcDoubleResponse(7072500),
             CreateXmlRpcResponseWithoutParams()
         ]);
-        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
-        var command = new AdjustCommand(client);
+        var command = new AdjustCommand(CreateClient(handler));
 
         var text = await ReadTextAsync(await command.ExecuteAsync(["7075450"]));
 
@@ -199,8 +191,7 @@ public class CommandsTests
             CreateXmlRpcResponseWithoutParams(),
             CreateXmlRpcResponseWithoutParams()
         ]);
-        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
-        var command = new IdentifyCommand(client);
+        var command = new IdentifyCommand(CreateClient(handler));
 
         var text = await ReadTextAsync(await command.ExecuteAsync(["1", "3"]));
 
@@ -240,8 +231,7 @@ public class CommandsTests
             CreateXmlRpcResponseWithoutParams(),
             CreateXmlRpcResponseWithoutParams()
         ]);
-        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
-        var command = new IdentifyCommand(client, new IdentifyCommandSettings(["BPSK31"]));
+        var command = new IdentifyCommand(CreateClient(handler), new IdentifyCommandSettings(["BPSK31"]));
 
         var text = await ReadTextAsync(await command.ExecuteAsync(["all", "1", "2", "v"]));
 
@@ -270,8 +260,7 @@ public class CommandsTests
             CreateXmlRpcResponseWithoutParams(),
             CreateXmlRpcResponseWithoutParams()
         ]);
-        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
-        var command = new IdentifyCommand(client);
+        var command = new IdentifyCommand(CreateClient(handler));
 
         var text = await ReadTextAsync(await command.ExecuteAsync(["1"]));
 
@@ -304,8 +293,7 @@ public class CommandsTests
             CreateXmlRpcResponseWithoutParams(),
             CreateXmlRpcResponseWithoutParams()
         ]);
-        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
-        var command = new IdentifyCommand(client, new IdentifyCommandSettings(["BPSK31"]));
+        var command = new IdentifyCommand(CreateClient(handler), new IdentifyCommandSettings(["BPSK31"]));
 
         var text = await ReadTextAsync(await command.ExecuteAsync(["1", "2", "v"]));
 
@@ -357,8 +345,7 @@ public class CommandsTests
         responsePayloads.Add(CreateXmlRpcResponseWithoutParams());
 
         var handler = new QueueResponseHandler(responsePayloads);
-        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
-        var command = new ScanCommand(client, new ScanCommandSettings(0));
+        var command = new ScanCommand(CreateClient(handler), new ScanCommandSettings(0));
 
         var text = await ReadTextAsync(await command.ExecuteAsync(Array.Empty<string>()));
 
@@ -409,8 +396,7 @@ public class CommandsTests
         responsePayloads.Add(CreateXmlRpcResponseWithoutParams());
 
         var handler = new QueueResponseHandler(responsePayloads);
-        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
-        var command = new ScanCommand(client, new ScanCommandSettings(0));
+        var command = new ScanCommand(CreateClient(handler), new ScanCommandSettings(0));
 
         var text = await ReadTextAsync(await command.ExecuteAsync(Array.Empty<string>()));
 
@@ -446,8 +432,7 @@ public class CommandsTests
         responsePayloads.Add(CreateXmlRpcResponseWithoutParams());
 
         var handler = new QueueResponseHandler(responsePayloads);
-        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
-        var command = new ScanCommand(client, new ScanCommandSettings(0));
+        var command = new ScanCommand(CreateClient(handler), new ScanCommandSettings(0));
 
         var text = await ReadTextAsync(await command.ExecuteAsync(["5"]));
 
@@ -486,8 +471,7 @@ public class CommandsTests
         responsePayloads.Add(CreateXmlRpcResponseWithoutParams());
 
         var handler = new QueueResponseHandler(responsePayloads);
-        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
-        var command = new ScanCommand(client, new ScanCommandSettings(0));
+        var command = new ScanCommand(CreateClient(handler), new ScanCommandSettings(0));
 
         var text = await ReadTextAsync(await command.ExecuteAsync(["5", "debug"]));
 
@@ -515,8 +499,7 @@ public class CommandsTests
         var handler = new QueueResponseHandler([
             CreateXmlRpcResponse("done")
         ]);
-        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
-        var command = new MethodCallCommand(client);
+        var command = new MethodCallCommand(CreateClient(handler));
 
         var text = await ReadTextAsync(await command.ExecuteAsync(["rig.get_mode", "42"]));
 
@@ -529,8 +512,7 @@ public class CommandsTests
     [Fact]
     public async Task MethodCallCommand_ReportsErrorsFromClient()
     {
-        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(new ThrowingHandler("boom")));
-        var command = new MethodCallCommand(client);
+        var command = new MethodCallCommand(CreateClient(new ThrowingHandler("boom")));
 
         var text = await ReadTextAsync(await command.ExecuteAsync(["rig.get_mode"]));
 
@@ -543,8 +525,7 @@ public class CommandsTests
         var handler = new QueueResponseHandler([
             CreateXmlRpcResponseWithoutParams()
         ]);
-        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
-        var command = new MonitorCommand(client);
+        var command = new MonitorCommand(CreateClient(handler));
 
         var text = await ReadTextAsync(await command.ExecuteAsync(Array.Empty<string>()));
 
@@ -556,8 +537,7 @@ public class CommandsTests
     [Fact]
     public async Task MonitorCommand_ReportsErrorsFromClient()
     {
-        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(new ThrowingHandler("monitor failed")));
-        var command = new MonitorCommand(client);
+        var command = new MonitorCommand(CreateClient(new ThrowingHandler("monitor failed")));
 
         var text = await ReadTextAsync(await command.ExecuteAsync(Array.Empty<string>()));
 
@@ -571,8 +551,7 @@ public class CommandsTests
             CreateXmlRpcResponse("stream-data"),
             CreateXmlRpcIntResponse(42)
         ]);
-        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
-        var command = new MonitorCommand(client);
+        var command = new MonitorCommand(CreateClient(handler));
 
         var first = await ReadTextAsync(await command.ExecuteAsync(Array.Empty<string>()));
         var second = await ReadTextAsync(await command.ExecuteAsync(Array.Empty<string>()));
@@ -587,8 +566,7 @@ public class CommandsTests
         var handler = new QueueResponseHandler([
             CreateXmlRpcBase64Response("Z29pbmc=")
         ]);
-        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
-        var command = new MonitorCommand(client);
+        var command = new MonitorCommand(CreateClient(handler));
 
         var text = await ReadTextAsync(await command.ExecuteAsync(Array.Empty<string>()));
 
@@ -598,7 +576,7 @@ public class CommandsTests
     [Fact]
     public async Task SetCommand_ImplementsGenericInterfaceAndWritesUsageForIncompleteArguments()
     {
-        var command = new SetCommand(new XmlRpcClient("127.0.0.1", 7362));
+        var command = new SetCommand(CreateClient(new HttpClientHandler()));
         ICommand<IReadOnlyList<string>> genericCommand = command;
 
         var stream = await genericCommand.ExecuteAsync(["only", "two"]);
@@ -618,8 +596,7 @@ public class CommandsTests
             CreateXmlRpcResponseWithoutParams(),
             CreateXmlRpcResponseWithoutParams()
         ]);
-        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(handler));
-        var command = new SetCommand(client);
+        var command = new SetCommand(CreateClient(handler));
 
         var text = await ReadTextAsync(await command.ExecuteAsync(["14074000", "USB", "Olivia"]));
 
@@ -639,17 +616,23 @@ public class CommandsTests
     [Fact]
     public async Task SetCommand_ReportsErrorsFromClient()
     {
-        var client = new XmlRpcClient("127.0.0.1", 7362, new HttpClient(new ThrowingHandler("set failed")));
-        var command = new SetCommand(client);
+        var command = new SetCommand(CreateClient(new ThrowingHandler("set failed")));
 
         var text = await ReadTextAsync(await command.ExecuteAsync(["14074000", "USB", "Olivia"]));
 
         Assert.Equal("Error: set failed", text);
     }
 
-    private static XmlRpcClient CreateClientReturning(string value)
+    private static FLDigi CreateClient(HttpMessageHandler handler)
     {
-        return new XmlRpcClient("127.0.0.1", 7362, new HttpClient(new QueueResponseHandler([CreateXmlRpcResponse(value)])));
+        return new FLDigi(
+            new XmlRpcConnectionSettings("127.0.0.1", 7362),
+            new HttpClient(handler));
+    }
+
+    private static FLDigi CreateClientReturning(string value)
+    {
+        return CreateClient(new QueueResponseHandler([CreateXmlRpcResponse(value)]));
     }
 
     private static async Task<string> ReadTextAsync(Stream stream)

@@ -10,14 +10,12 @@ public class FlConsoleApplicationTests
         var helpCommand = new AppTestCommand("help", "help text");
         var resolver = new CommandResolver<IReadOnlyList<string>>([helpCommand]);
         var renderer = new AppTestRenderer();
-        var outputBuffer = new ConsoleOutputBuffer(MaxLines: 20);
-        var promptReader = new AppTestPromptReader(["should-not-be-read"]);
+        var promptReader = new AppTestPromptReader([new ConsoleCommand("help", [])]);
+        var console = new global::flconsole.Console.Console(promptReader, renderer);
         var shellController = new AppTestShellController();
         var app = new FlConsoleApplication(
             resolver,
-            renderer,
-            outputBuffer,
-            promptReader,
+            console,
             new XmlRpcConnectionSettings("127.0.0.1", 7362),
             shellController);
         var output = new StringWriter();
@@ -36,14 +34,12 @@ public class FlConsoleApplicationTests
     {
         var resolver = new CommandResolver<IReadOnlyList<string>>([new AppTestCommand("help", "ignored")]);
         var renderer = new AppTestRenderer();
-        var outputBuffer = new ConsoleOutputBuffer(MaxLines: 20);
-        var promptReader = new AppTestPromptReader(["help", "monitor", null]);
+        var promptReader = new AppTestPromptReader([new ConsoleCommand("help", []), new ConsoleCommand("monitor", []), null]);
+        var console = new global::flconsole.Console.Console(promptReader, renderer);
         var shellController = new AppTestShellController();
         var app = new FlConsoleApplication(
             resolver,
-            renderer,
-            outputBuffer,
-            promptReader,
+            console,
             new XmlRpcConnectionSettings("10.0.0.5", 9999),
             shellController);
 
@@ -51,14 +47,13 @@ public class FlConsoleApplicationTests
 
         Assert.Equal(0, exitCode);
         Assert.Equal(1, renderer.ClearCallCount);
-        Assert.Equal(1, renderer.RenderOutputCallCount);
-        Assert.Equal(1, renderer.RenderInputCallCount);
+        Assert.True(renderer.Lines.Count >= 2);
+        Assert.Equal(1, renderer.ShowPromptCallCount);
         Assert.Equal(["help", "monitor"], shellController.HandledInputs);
         Assert.Equal(1, shellController.StopCallCount);
 
-        var lines = outputBuffer.GetVisibleLines(10).ToList();
-        Assert.Equal("FLDigi XML-RPC shell (host=10.0.0.5, port=9999)", lines[0]);
-        Assert.Equal("Type 'help' for commands, or 'quit' to exit.", lines[1]);
+        Assert.Equal("FLDigi XML-RPC shell (host=10.0.0.5, port=9999)", renderer.Lines[0]);
+        Assert.Equal("Type 'help' for commands, or 'quit' to exit.", renderer.Lines[1]);
     }
 
     [Fact]
@@ -66,14 +61,12 @@ public class FlConsoleApplicationTests
     {
         var resolver = new CommandResolver<IReadOnlyList<string>>([new AppTestCommand("help", "ignored")]);
         var renderer = new AppTestRenderer();
-        var outputBuffer = new ConsoleOutputBuffer(MaxLines: 20);
-        var promptReader = new AppTestPromptReader(["help"]);
+        var promptReader = new AppTestPromptReader([new ConsoleCommand("help", [])]);
+        var console = new global::flconsole.Console.Console(promptReader, renderer);
         var shellController = new AppTestShellController { IsRunning = false };
         var app = new FlConsoleApplication(
             resolver,
-            renderer,
-            outputBuffer,
-            promptReader,
+            console,
             new XmlRpcConnectionSettings("127.0.0.1", 7362),
             shellController);
 
@@ -84,35 +77,43 @@ public class FlConsoleApplicationTests
         Assert.Equal(1, shellController.StopCallCount);
     }
 
-    private sealed class AppTestRenderer : IRenderer
+    private sealed class AppTestRenderer : IConsoleDisplay
     {
+        public List<string> Lines { get; } = [];
         public int ClearCallCount { get; private set; }
-        public int RenderOutputCallCount { get; private set; }
-        public int RenderInputCallCount { get; private set; }
+        public int AppendTextCallCount { get; private set; }
+        public int ShowPromptCallCount { get; private set; }
 
         public void Clear()
         {
             ClearCallCount++;
         }
 
-        public void RenderOutput(ConsoleOutputBuffer outputBuffer)
+        public void ShowPrompt(string promptText, int cursorIndex)
         {
-            RenderOutputCallCount++;
+            ShowPromptCallCount++;
         }
 
-        public void RenderInput(string promptText, int cursorIndex)
+        public void AppendText(string text)
         {
-            RenderInputCallCount++;
+            AppendTextCallCount++;
+        }
+
+        public void AppendLine(string text)
+        {
+            Lines.Add(text);
         }
     }
 
-    private sealed class AppTestPromptReader(IEnumerable<string?> lines) : IPromptReader
+    private sealed class AppTestPromptReader(IEnumerable<ConsoleCommand?> commands) : ICommandSource
     {
-        private readonly Queue<string?> _lines = new(lines);
+        private readonly Queue<ConsoleCommand?> _commands = new(commands);
 
-        public string? ReadLineFromPrompt()
+        public ConsolePromptState PromptState => new(string.Empty, 0);
+
+        public ConsoleCommand? ReadCommand()
         {
-            return _lines.Count > 0 ? _lines.Dequeue() : null;
+            return _commands.Count > 0 ? _commands.Dequeue() : null;
         }
     }
 
@@ -122,9 +123,9 @@ public class FlConsoleApplicationTests
         public List<string> HandledInputs { get; } = [];
         public int StopCallCount { get; private set; }
 
-        public Task HandleInputAsync(string line)
+        public Task HandleCommandAsync(ConsoleCommand request)
         {
-            HandledInputs.Add(line);
+            HandledInputs.Add(request.Name);
             return Task.CompletedTask;
         }
 
