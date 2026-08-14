@@ -1,0 +1,2 @@
+/tmp/tmp.Tu29lLDsI9/appsettings.json
+/tmp/tmp.Tu29lLDsI9/flconsole

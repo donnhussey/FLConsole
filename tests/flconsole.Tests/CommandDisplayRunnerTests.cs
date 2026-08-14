@@ -2,9 +2,13 @@ using System.Text;
 
 namespace flconsole.Tests;
 
-public class CommandDisplayRunnerTests
+public class CommandExecutorTests
 {
-    private static readonly ShellMessages TestMessages = new("Unknown command: {0}. Type 'help' for commands.", "Error: {0}");
+    private static readonly CommandMessages TestMessages = CommandMessages.Defaults with
+    {
+        UnknownCommandFormat = "Unknown command: {0}. Type 'help' for commands.",
+        ExecutionErrorFormat = "Error: {0}"
+    };
     [Fact]
     public async Task StopAsync_WhenNotStarted_ReturnsCleanly()
     {
@@ -125,12 +129,12 @@ public class CommandDisplayRunnerTests
         Assert.Empty(outputBuffer.GetVisibleLines(10));
     }
 
-    private static CommandDisplayRunner CreateRunner(out RunnerTestRenderer renderer, out ConsoleOutputBuffer outputBuffer)
+    private static CommandExecutor CreateRunner(out RunnerTestRenderer renderer, out ConsoleOutputBuffer outputBuffer)
     {
         renderer = new RunnerTestRenderer();
         outputBuffer = renderer.OutputBuffer;
         var promptHandler = new ConsolePromptHandler(renderer, new EnterOnlyConsoleInput());
-        return new CommandDisplayRunner(renderer, promptHandler, TestMessages);
+        return new CommandExecutor(renderer, promptHandler, TestMessages);
     }
 
     private static async Task WaitUntilAsync(Func<bool> predicate)
@@ -176,7 +180,7 @@ public class CommandDisplayRunnerTests
     }
 
     private sealed class RunnerTestCommand(string response, bool repeat, TimeSpan repeatInterval)
-        : ICommand<IReadOnlyList<string>>
+        : ICommand
     {
         public string CommandName => "runner";
         public bool Repeat { get; } = repeat;
@@ -186,7 +190,7 @@ public class CommandDisplayRunnerTests
         public bool ThrowOnExecute { get; set; }
         public string ExceptionMessage { get; set; } = "error";
 
-        public Task<Stream> ExecuteAsync(IReadOnlyList<string> request)
+        public async Task ExecuteAsync(IReadOnlyList<string> request, ICommandOutput output, CancellationToken cancellationToken = default)
         {
             ExecuteCount++;
             if (ThrowOnExecute)
@@ -194,11 +198,11 @@ public class CommandDisplayRunnerTests
                 throw new InvalidOperationException(ExceptionMessage);
             }
 
-            return Task.FromResult<Stream>(new MemoryStream(Encoding.UTF8.GetBytes(response)));
+            await output.WriteAsync(response, cancellationToken);
         }
     }
 
-    private sealed class CancelAwareRunnerTestCommand : ICommand<IReadOnlyList<string>>
+    private sealed class CancelAwareRunnerTestCommand : ICommand
     {
         private readonly TaskCompletionSource<bool> _gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -209,7 +213,7 @@ public class CommandDisplayRunnerTests
         public bool HasEnteredExecute { get; private set; }
         public bool ThrowOperationCanceled { get; set; }
 
-        public async Task<Stream> ExecuteAsync(IReadOnlyList<string> request)
+        public async Task ExecuteAsync(IReadOnlyList<string> request, ICommandOutput output, CancellationToken cancellationToken = default)
         {
             HasEnteredExecute = true;
             await _gate.Task;
@@ -219,7 +223,7 @@ public class CommandDisplayRunnerTests
                 throw new OperationCanceledException();
             }
 
-            return new MemoryStream(Encoding.UTF8.GetBytes("ok"));
+            await output.WriteAsync("ok", cancellationToken);
         }
 
         public void ReleaseExecution()
@@ -228,7 +232,7 @@ public class CommandDisplayRunnerTests
         }
     }
 
-    private sealed class IncrementalRunnerTestCommand : ICommand<IReadOnlyList<string>>
+    private sealed class IncrementalRunnerTestCommand : ICommand
     {
         private readonly TaskCompletionSource<bool> _secondChunkGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -237,9 +241,11 @@ public class CommandDisplayRunnerTests
         public TimeSpan RepeatInterval => TimeSpan.Zero;
         public bool StopsShell => false;
 
-        public Task<Stream> ExecuteAsync(IReadOnlyList<string> request)
+        public async Task ExecuteAsync(IReadOnlyList<string> request, ICommandOutput output, CancellationToken cancellationToken = default)
         {
-            return Task.FromResult<Stream>(new DeferredChunkStream(_secondChunkGate.Task));
+            await output.WriteAsync("first", cancellationToken);
+            await _secondChunkGate.Task.WaitAsync(cancellationToken);
+            await output.WriteAsync(" second", cancellationToken);
         }
 
         public void ReleaseSecondChunk()

@@ -3,12 +3,12 @@ using flconsole.Console;
 
 namespace flconsole;
 
-public sealed class CommandResolver<TRequest>(IEnumerable<ICommand<TRequest>> commands) : ICommandResolver<TRequest>
+public sealed class CommandResolver(IEnumerable<ICommand> commands) : ICommandResolver
 {
-    private readonly IReadOnlyDictionary<string, ICommand<TRequest>> _commands = commands
+    private readonly IReadOnlyDictionary<string, ICommand> _commands = commands
         .ToDictionary(command => command.CommandName, StringComparer.OrdinalIgnoreCase);
 
-    public ICommand<TRequest>? Resolve(string commandName)
+    public ICommand? Resolve(string commandName)
     {
         if (string.IsNullOrWhiteSpace(commandName))
         {

@@ -1,8 +1,12 @@
 {
   "version": 2,
-  "dgSpecHash": "+pTdPZ3jK6I=",
+  "dgSpecHash": "sJuvEL2hMtc=",
   "success": true,
   "projectFilePath": "/home/donn/flconsole/flconsole.Console/flconsole.Console.csproj",
-  "expectedPackageFiles": [],
+  "expectedPackageFiles": [
+    "/home/donn/.nuget/packages/microsoft.net.illink.tasks/10.0.10/microsoft.net.illink.tasks.10.0.10.nupkg.sha512",
+    "/home/donn/.nuget/packages/microsoft.netcore.app.runtime.linux-arm64/10.0.10/microsoft.netcore.app.runtime.linux-arm64.10.0.10.nupkg.sha512",
+    "/home/donn/.nuget/packages/microsoft.aspnetcore.app.runtime.linux-arm64/10.0.10/microsoft.aspnetcore.app.runtime.linux-arm64.10.0.10.nupkg.sha512"
+  ],
   "logs": []
 }

@@ -76,6 +76,48 @@ public class ConsolePromptHandlerInputTests
         Assert.Equal(1, handler.PromptState.CursorIndex);
     }
 
+    [Fact]
+    public void ReadCommand_UpAndDownNavigateHistoryAndRestoreDraft()
+    {
+        var renderer = new FakePromptAreaRenderer();
+        var input = new QueueConsoleInput([
+            Key('h', ConsoleKey.H), Key('i', ConsoleKey.I), Key('\r', ConsoleKey.Enter),
+            Key('d', ConsoleKey.D), Key('r', ConsoleKey.R), Key('a', ConsoleKey.A), Key('f', ConsoleKey.F), Key('t', ConsoleKey.T),
+            Key('\0', ConsoleKey.UpArrow), Key('\0', ConsoleKey.DownArrow), Key('\r', ConsoleKey.Enter)
+        ]);
+        var handler = new ConsolePromptHandler(renderer, input);
+
+        Assert.Equal("hi", handler.ReadCommand()?.Name);
+        var command = handler.ReadCommand();
+
+        Assert.Equal("draft", command?.Name);
+        Assert.Equal("draft", handler.PromptState.Text);
+    }
+
+    [Fact]
+    public void ReadCommand_StoresAtMostThirtyCommands()
+    {
+        var renderer = new FakePromptAreaRenderer();
+        var keys = new List<ConsoleKeyInfo>();
+        for (var index = 0; index < 31; index++)
+        {
+            var text = $"cmd{index}";
+            keys.AddRange(text.Select(character => Key(character, ConsoleKey.A)));
+            keys.Add(Key('\r', ConsoleKey.Enter));
+        }
+
+        keys.Add(Key('\0', ConsoleKey.UpArrow));
+        keys.Add(Key('\r', ConsoleKey.Enter));
+        var handler = new ConsolePromptHandler(renderer, new QueueConsoleInput(keys));
+
+        for (var index = 0; index < 31; index++)
+        {
+            handler.ReadCommand();
+        }
+
+        Assert.Equal("cmd30", handler.ReadCommand()?.Name);
+    }
+
     private static ConsoleKeyInfo Key(char character, ConsoleKey key)
     {
         return new ConsoleKeyInfo(character, key, false, false, false);

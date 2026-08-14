@@ -136,6 +136,16 @@ public class ModelsTests
     }
 
     [Fact]
+    public void XmlRpcResponse_GetValue_RejectsMissingNumericValue()
+    {
+        var response = new XmlRpcResponse();
+
+        var exception = Assert.Throws<InvalidOperationException>(() => response.GetValue<double>("modem.get_quality"));
+
+        Assert.Equal("modem.get_quality returned no value.", exception.Message);
+    }
+
+    [Fact]
     public void XmlRpcValue_FromXml_ParsesI4AndUnknownAndMissingChild()
     {
         var i4Value = XmlRpcValue.FromXml(XElement.Parse("<value><i4>9</i4></value>"));

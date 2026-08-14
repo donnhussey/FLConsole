@@ -1,67 +1,48 @@
 using System.Globalization;
-using System.IO;
 using flconsole.XmlRpc.Models;
 
 namespace flconsole.Commands;
 
-public class SetCommand(FLDigi _fldigi) : ICommand<IReadOnlyList<string>>
+public class SetCommand(FLDigi _fldigi, FrequencyCommandSettings? commandSettings = null, CommandMessages? messages = null) : ICommand
 {
-    private const double MinCarrierOffsetHz = 1;
-    private const double MaxCarrierOffsetHz = 3000;
-    private const double ModemCarrierOffset = 1500;
-    private static readonly TimeSpan FrequencyCarrierSettleDelay = TimeSpan.FromMilliseconds(150);
+    private readonly FrequencyCommandSettings _settings = commandSettings ?? new(1, 3000, 1500, 150);
+    private readonly FrequencyTuner _tuner = new(_fldigi, commandSettings ?? new(1, 3000, 1500, 150));
+    private readonly CommandMessages _messages = messages ?? CommandMessages.Defaults;
 
     public string CommandName => "set";
     public bool Repeat => false;
     public TimeSpan RepeatInterval => TimeSpan.Zero;
     public bool StopsShell => false;
 
-    public async Task<Stream> ExecuteAsync(IReadOnlyList<string> arguments)
+    public async Task ExecuteAsync(IReadOnlyList<string> arguments, ICommandOutput output, CancellationToken cancellationToken = default)
     {
-        if (arguments.Count < 3)
+        if (arguments.Count is < 1 or > 3)
         {
-            return CommandTextStream.Create("Usage: set <frequency> <rig-mode> <modem-name>");
+            await output.WriteAsync(_messages.SetUsage, cancellationToken); return;
         }
 
-        try
-        {
-            var frequency = arguments[0];
-            var rigMode = arguments[1];
-            var modemName = arguments[2];
+        var frequency = arguments[0];
+        var modemName = arguments.Count > 1 ? arguments[1] : string.Empty;
+        var rigMode = arguments.Count > 2 ? arguments[2] : string.Empty;
 
-            await _fldigi.Rig.TakeControlAsync();
-            await SetFrequencyAndCarrierAsync(double.Parse(frequency, CultureInfo.InvariantCulture) - ModemCarrierOffset, ModemCarrierOffset);
-            await _fldigi.Rig.SetModeAsync(rigMode);
+        await _fldigi.Rig.TakeControlAsync();
+        if (!CommandArguments.TryGetFrequency(arguments, 0, out var requestedFrequency))
+        {
+            await output.WriteAsync(_messages.SetUsage, cancellationToken); return;
+        }
+
+        await _tuner.SetAsync(requestedFrequency - _settings.CenterCarrierOffsetHz, _settings.CenterCarrierOffsetHz, cancellationToken);
+        if (!string.IsNullOrWhiteSpace(modemName))
+        {
             await _fldigi.Modem.SetByNameAsync(modemName);
-
-            return CommandTextStream.Create($"Set frequency={frequency}, rigMode={rigMode}, modem={modemName}");
         }
-        catch (Exception ex)
+
+        if (!string.IsNullOrWhiteSpace(rigMode))
         {
-            return CommandTextStream.Create($"Error: {ex.Message}");
-        }
-    }
-
-    private async Task SetFrequencyAndCarrierAsync(double dialFrequency, double carrierOffset)
-    {
-        var validCarrierOffset = EnsureValidCarrierOffset(carrierOffset);
-
-        await _fldigi.Rig.SetFrequencyAsync(dialFrequency);
-
-        await Task.Delay(FrequencyCarrierSettleDelay);
-
-        await _fldigi.Modem.SetCarrierAsync(validCarrierOffset);
-
-        await Task.Delay(FrequencyCarrierSettleDelay);
-    }
-
-    private static double EnsureValidCarrierOffset(double carrierOffset)
-    {
-        if (carrierOffset < MinCarrierOffsetHz || carrierOffset > MaxCarrierOffsetHz)
-        {
-            throw new InvalidOperationException($"Carrier offset must be between {MinCarrierOffsetHz.ToString("0", CultureInfo.InvariantCulture)} and {MaxCarrierOffsetHz.ToString("0", CultureInfo.InvariantCulture)} Hz.");
+            await _fldigi.Rig.SetModeAsync(rigMode);
         }
 
-        return carrierOffset;
+        await output.WriteAsync(string.Format(_messages.SetResult, frequency, modemName, rigMode), cancellationToken);
     }
+
 }

@@ -5,26 +5,27 @@ namespace flconsole;
 
 public static class ServiceCollectionExtensions
 {
-    private const string DefaultHost = "127.0.0.1";
-    private const int DefaultPort = 7362;
-    private const string DefaultPromptPrefix = "flconsole > ";
-    private const string DefaultUnknownCommandFormat = "Unknown command: {0}. Type 'help' for commands.";
-    private const string DefaultExecutionErrorFormat = "Error: {0}";
-    private const int DefaultMaxLines = 500;
-    private const int DefaultScanSettleDelayMilliseconds = ScanCommandSettings.DefaultSettleDelayMilliseconds;
 
-    public static IServiceCollection AddFlConsole(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddFlConsole(this IServiceCollection services, IConfiguration configuration, bool debug = false)
     {
         var (host, port) = ReadXmlRpcSettings(configuration);
         var connectionSettings = new XmlRpcConnectionSettings(host, port);
-        var shellMessages = new ShellMessages(DefaultUnknownCommandFormat, DefaultExecutionErrorFormat);
-        var scanCommandSettings = ReadScanCommandSettings(configuration);
+        var consoleSettings = ReadConsoleSettings(configuration);
+        var commandMessages = ReadCommandMessages(configuration);
+        var scanCommandSettings = ReadScanCommandSettings(configuration, debug);
         var identifyCommandSettings = ReadIdentifyCommandSettings(configuration);
+        var frequencySettings = ReadFrequencyCommandSettings(configuration);
+        var monitorSettings = ReadMonitorCommandSettings(configuration);
+        var options = new FlConsoleOptions(connectionSettings, consoleSettings, commandMessages, scanCommandSettings, identifyCommandSettings, frequencySettings, monitorSettings);
 
-        services.AddSingleton(connectionSettings);
-        services.AddSingleton(shellMessages);
-        services.AddSingleton(scanCommandSettings);
-        services.AddSingleton(identifyCommandSettings);
+        services.AddSingleton(options);
+        services.AddSingleton(provider => provider.GetRequiredService<FlConsoleOptions>().Connection);
+        services.AddSingleton(provider => provider.GetRequiredService<FlConsoleOptions>().Console);
+        services.AddSingleton(provider => provider.GetRequiredService<FlConsoleOptions>().Messages);
+        services.AddSingleton(provider => provider.GetRequiredService<FlConsoleOptions>().Scan);
+        services.AddSingleton(provider => provider.GetRequiredService<FlConsoleOptions>().Identify);
+        services.AddSingleton(provider => provider.GetRequiredService<FlConsoleOptions>().Frequency);
+        services.AddSingleton(provider => provider.GetRequiredService<FlConsoleOptions>().Monitor);
         services.AddSingleton<HttpClient>();
         services.AddSingleton(provider =>
         {
@@ -32,22 +33,28 @@ public static class ServiceCollectionExtensions
             var httpClient = provider.GetRequiredService<HttpClient>();
             return new FLDigi(settings, httpClient);
         });
-        services.AddSingleton<IConsole>(_ => ConsoleFactory.Create(DefaultPromptPrefix, DefaultMaxLines));
+        services.AddSingleton<IConsole>(provider =>
+        {
+            var settings = provider.GetRequiredService<FlConsoleOptions>().Console;
+            return ConsoleFactory.Create(settings.PromptPrefix, settings.MaxLines);
+        });
         services.AddSingleton(provider => provider.GetRequiredService<IConsole>().Display);
         services.AddSingleton(provider => provider.GetRequiredService<IConsole>().CommandSource);
-        services.AddSingleton<CommandDisplayRunner>();
-        services.AddSingleton<ICommand<IReadOnlyList<string>>, HelpCommand>();
-        services.AddSingleton<ICommand<IReadOnlyList<string>>, ClearCommand>();
-        services.AddSingleton<ICommand<IReadOnlyList<string>>, QuitCommand>();
-        services.AddSingleton<ICommand<IReadOnlyList<string>>, AdjustCommand>(provider => new AdjustCommand(provider.GetRequiredService<FLDigi>()));
-        services.AddSingleton<ICommand<IReadOnlyList<string>>, SetCommand>(provider => new SetCommand(provider.GetRequiredService<FLDigi>()));
-        services.AddSingleton<ICommand<IReadOnlyList<string>>, ScanCommand>(provider => new ScanCommand(provider.GetRequiredService<FLDigi>()));
-        services.AddSingleton<ICommand<IReadOnlyList<string>>, MonitorCommand>(provider => new MonitorCommand(provider.GetRequiredService<FLDigi>()));
-        services.AddSingleton<ICommand<IReadOnlyList<string>>, IdentifyCommand>(provider => new IdentifyCommand(provider.GetRequiredService<FLDigi>()));
-        services.AddSingleton<ICommand<IReadOnlyList<string>>, MethodCallCommand>(provider => new MethodCallCommand(provider.GetRequiredService<FLDigi>()));
-        services.AddSingleton<ICommandResolver<IReadOnlyList<string>>, CommandResolver<IReadOnlyList<string>>>();
+        services.AddSingleton<CommandExecutor>();
+        services.AddSingleton<ICommand, HelpCommand>();
+        services.AddSingleton<ICommand, ClearCommand>();
+        services.AddSingleton<ICommand, QuitCommand>();
+        services.AddSingleton<ICommand, AdjustCommand>();
+        services.AddSingleton<ICommand, SetCommand>();
+        services.AddSingleton<ICommand, ScanCommand>();
+        services.AddSingleton<ICommand, MonitorCommand>();
+        services.AddSingleton<ICommand, IdentifyCommand>();
+        if (debug)
+        {
+            services.AddSingleton<ICommand, MethodCallCommand>();
+        }
+        services.AddSingleton<ICommandResolver, CommandResolver>();
         services.AddSingleton<FlConsoleShellController>();
-        services.AddSingleton<IShellController>(provider => provider.GetRequiredService<FlConsoleShellController>());
         services.AddSingleton<FlConsoleApplication>();
 
         return services;
@@ -55,22 +62,21 @@ public static class ServiceCollectionExtensions
 
     private static (string Host, int Port) ReadXmlRpcSettings(IConfiguration configuration)
     {
-        var host = configuration["FlConsole:Host"];
-        var portText = configuration["FlConsole:Port"];
-
-        return (
-            string.IsNullOrWhiteSpace(host) ? DefaultHost : host,
-            int.TryParse(portText, out var port) ? port : DefaultPort);
+        return (RequiredString(configuration, "FlConsole:Host"), RequiredInt(configuration, "FlConsole:Port"));
     }
 
-    private static ScanCommandSettings ReadScanCommandSettings(IConfiguration configuration)
+    private static ScanCommandSettings ReadScanCommandSettings(IConfiguration configuration, bool debug)
     {
-        var settleDelayText = configuration["FlConsole:ScanSettleDelayMilliseconds"];
-        var settleDelayMilliseconds = int.TryParse(settleDelayText, out var parsedDelay) && parsedDelay >= 0
-            ? parsedDelay
-            : DefaultScanSettleDelayMilliseconds;
-
-        return new ScanCommandSettings(settleDelayMilliseconds);
+        return new ScanCommandSettings(
+            RequiredInt(configuration, "FlConsole:Scan:SettleDelayMilliseconds"),
+            RequiredDouble(configuration, "FlConsole:Scan:MinCarrierOffsetHz"),
+            RequiredDouble(configuration, "FlConsole:Scan:MaxCarrierOffsetHz"),
+            RequiredDouble(configuration, "FlConsole:Scan:LowerCarrierOffsetHz"),
+            RequiredDouble(configuration, "FlConsole:Scan:CarrierStepHz"),
+            RequiredDouble(configuration, "FlConsole:Scan:UpperCarrierOffsetHz"),
+            RequiredDouble(configuration, "FlConsole:Scan:DefaultQualityThreshold"),
+            RequiredString(configuration, "FlConsole:Scan:ModemName"),
+            debug);
     }
 
     private static IdentifyCommandSettings ReadIdentifyCommandSettings(IConfiguration configuration)
@@ -83,6 +89,42 @@ public static class ServiceCollectionExtensions
             .Cast<string>()
             .ToList();
 
-        return new IdentifyCommandSettings(configuredModems);
+        if (configuredModems.Count == 0) throw new InvalidOperationException("Missing required configuration: FlConsole:IdentifyModems");
+        return new IdentifyCommandSettings(configuredModems,
+            DefaultRsidListenSeconds: RequiredInt(configuration, "FlConsole:Identify:DefaultRsidListenSeconds"),
+            DefaultTopCandidates: RequiredInt(configuration, "FlConsole:Identify:DefaultTopCandidates"),
+            MinimumQualityToIdentify: RequiredDouble(configuration, "FlConsole:Identify:MinimumQualityToIdentify"),
+            FrequencyCarrierSettleDelayMilliseconds: RequiredInt(configuration, "FlConsole:Identify:FrequencyCarrierSettleDelayMilliseconds"),
+            RsidSampleIntervalMilliseconds: RequiredInt(configuration, "FlConsole:Identify:RsidSampleIntervalMilliseconds"),
+            ModeSettleDelayMilliseconds: RequiredInt(configuration, "FlConsole:Identify:ModeSettleDelayMilliseconds"),
+            HeuristicQualitySampleDelayMilliseconds: RequiredInt(configuration, "FlConsole:Identify:HeuristicQualitySampleDelayMilliseconds"));
     }
+
+    private static ConsoleSettings ReadConsoleSettings(IConfiguration configuration) => new(
+        RequiredString(configuration, "FlConsole:Console:PromptPrefix"),
+        RequiredInt(configuration, "FlConsole:Console:MaxLines"));
+
+    private static CommandMessages ReadCommandMessages(IConfiguration configuration)
+    {
+        return new CommandMessages(
+            RequiredMessage(configuration, "HelpText"), RequiredMessage(configuration, "StartupHint"), RequiredMessage(configuration, "CommandErrorFormat"),
+            RequiredMessage(configuration, "UnknownCommandFormat"), RequiredMessage(configuration, "ExecutionErrorFormat"),
+            RequiredMessage(configuration, "AdjustUsage"), RequiredMessage(configuration, "AdjustResult"), RequiredMessage(configuration, "SetUsage"), RequiredMessage(configuration, "SetResult"),
+            RequiredMessage(configuration, "ScanUsage"), RequiredMessage(configuration, "ScanDone"), RequiredMessage(configuration, "ScanCarrierDebug"), RequiredMessage(configuration, "ScanQualityDebug"), RequiredMessage(configuration, "ScanActivity"),
+            RequiredMessage(configuration, "IdentifyUsage"), RequiredMessage(configuration, "IdentifyCurrentModem"), RequiredMessage(configuration, "IdentifySignalFrequency"), RequiredMessage(configuration, "IdentifyCenteredFrequency"), RequiredMessage(configuration, "IdentifyListening"), RequiredMessage(configuration, "IdentifyRsidResult"), RequiredMessage(configuration, "IdentifyNothing"), RequiredMessage(configuration, "IdentifyNoCandidates"), RequiredMessage(configuration, "IdentifyTopCandidates"), RequiredMessage(configuration, "IdentifyCandidate"), RequiredMessage(configuration, "IdentifySelected"), RequiredMessage(configuration, "IdentifyVerboseCandidate"), RequiredMessage(configuration, "MethodUsage"), RequiredMessage(configuration, "MonitorNullValue"));
+    }
+
+    private static FrequencyCommandSettings ReadFrequencyCommandSettings(IConfiguration configuration) => new(
+        RequiredDouble(configuration, "FlConsole:Frequency:MinCarrierOffsetHz"),
+        RequiredDouble(configuration, "FlConsole:Frequency:MaxCarrierOffsetHz"),
+        RequiredDouble(configuration, "FlConsole:Frequency:CenterCarrierOffsetHz"),
+        RequiredInt(configuration, "FlConsole:Frequency:SettleDelayMilliseconds"));
+
+    private static MonitorCommandSettings ReadMonitorCommandSettings(IConfiguration configuration) => new(
+        RequiredInt(configuration, "FlConsole:Monitor:PollIntervalMilliseconds"));
+
+    private static string RequiredMessage(IConfiguration configuration, string name) => RequiredString(configuration, $"FlConsole:Messages:{name}");
+    private static string RequiredString(IConfiguration configuration, string key) => configuration[key] ?? throw new InvalidOperationException($"Missing required configuration: {key}");
+    private static int RequiredInt(IConfiguration configuration, string key) => int.TryParse(RequiredString(configuration, key), out var value) ? value : throw new InvalidOperationException($"Invalid integer configuration: {key}");
+    private static double RequiredDouble(IConfiguration configuration, string key) => double.TryParse(RequiredString(configuration, key), NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? value : throw new InvalidOperationException($"Invalid number configuration: {key}");
 }

@@ -22,6 +22,13 @@ internal sealed class PromptEditor
         CursorIndex = 0;
     }
 
+    public void SetText(string text)
+    {
+        _text.Clear();
+        _text.Append(text);
+        CursorIndex = _text.Length;
+    }
+
     public PromptEditResult Apply(ConsoleKeyInfo key)
     {
         if (key.Key == ConsoleKey.Enter)

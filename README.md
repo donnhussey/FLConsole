@@ -54,9 +54,80 @@ Run a command immediately after startup:
 
 ```text
 clear
-method system.listMethods
 identify 5 5 v
 ```
+
+When started with `--debug`, direct XML-RPC calls are also available:
+
+```text
+method system.listMethods
+```
+
+## Debug Mode
+
+Start debug mode from the repository root with:
+
+```bash
+dotnet run -- --debug
+```
+
+The `--` passes the option to `flconsole` instead of to `dotnet run`. You can also run the application project directly:
+
+```bash
+dotnet run --project flconsole/flconsole.csproj -- --debug
+```
+
+Debug mode does two things:
+
+- Enables the `method` command for direct XML-RPC calls.
+- Adds carrier readback and quality output for every stop during `scan`.
+
+The normal interactive commands are also available in debug mode:
+
+```text
+help
+clear
+quit
+adjust <frequency>
+set <frequency> [modem-name] [rig-mode]
+scan [quality-threshold]
+monitor
+identify [all] [listen-seconds] [top-candidates] [v]
+method <method-name> [arg1 arg2 ...]
+```
+
+### Debug Command Examples
+
+Show the available commands without connecting to FLDigi:
+
+```bash
+dotnet run -- --debug --help
+```
+
+Inside the debug shell, call an XML-RPC method directly. Integer and decimal arguments are parsed as numbers; other arguments are sent as strings:
+
+```text
+method system.listMethods
+method rig.get_frequency
+method modem.set_carrier 1500
+method modem.get_quality
+```
+
+Run a scan with per-carrier diagnostics. The optional value is the minimum quality threshold for reporting activity; it does not disable the debug lines:
+
+```text
+scan
+scan 5
+```
+
+For verbose modem-candidate details, use `v` with `identify`. This is an `identify` argument and does not require starting the process with `--debug`:
+
+```text
+identify 5 5 v
+identify all 5 5 v
+```
+
+`identify` arguments are positional: `all` tests every modem returned by FLDigi, the first number is the RSID listening time in seconds, the second number is the number of heuristic candidates to show, and `v` prints each candidate's scoring details. `method` is only registered when the application is started with `--debug`; in normal mode it is unavailable.
 
 ## Configuration
 
@@ -68,6 +139,9 @@ Default FLDigi endpoint settings:
 Config file:
 
 - `flconsole/appsettings.json`
+- Optional system-wide configuration: `/etc/flconsole.conf`
+
+Configuration files use JSON format. The system-wide file is loaded first, so the repository and application-local files override matching settings.
 
 Example:
 
@@ -109,13 +183,13 @@ Scan configuration:
   - By default, sweeps only `FlConsole:IdentifyModems` from config.
   - Add `all` to sweep all modem names returned by FLDigi.
   - Add `v` to include per-candidate scoring lines.
-- `set <frequency> <rig-mode> <modem-name>`
+  - `set <frequency> [modem-name] [rig-mode]`
   - Take rig control, set frequency/mode, and set modem.
-- `scan [quality-threshold] [debug]`
-  - Takes rig control and temporarily switches modem to `CW`.
+- `scan [quality-threshold]`
+  - Takes rig control and uses the current modem unless `FlConsole:Scan:ModemName` configures an explicit override.
   - Scans carrier offsets from `100` to `2900` Hz in `100` Hz steps using `modem.set_carrier`.
   - Reports activity where `modem.get_quality` is above the threshold (default `20`).
-  - Add `debug` (or `d`) to print requested/readback carrier and per-stop quality lines.
+  - Run the application with `--debug` to print requested/readback carrier and per-stop quality lines.
   - Restores prior modem, dial frequency, and carrier offset after completion.
 - `monitor`
   - Poll `rx.get_data` once per second and print decoded RX text.

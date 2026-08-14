@@ -7,23 +7,21 @@ public class FlConsoleApplicationTests
     [Fact]
     public async Task RunAsync_HelpFlag_WritesHelpAndSkipsInteractiveLoop()
     {
-        var helpCommand = new AppTestCommand("help", "help text");
-        var resolver = new CommandResolver<IReadOnlyList<string>>([helpCommand]);
         var renderer = new AppTestRenderer();
         var promptReader = new AppTestPromptReader([new ConsoleCommand("help", [])]);
         var console = new global::flconsole.Console.Console(promptReader, renderer);
         var shellController = new AppTestShellController();
         var app = new FlConsoleApplication(
-            resolver,
             console,
             new XmlRpcConnectionSettings("127.0.0.1", 7362),
+            CommandMessages.Defaults,
             shellController);
         var output = new StringWriter();
 
         var exitCode = await app.RunAsync(["--help"], output);
 
         Assert.Equal(0, exitCode);
-        Assert.Equal("help text" + Environment.NewLine, output.ToString());
+        Assert.Equal(CommandMessages.Defaults.HelpText + Environment.NewLine, output.ToString());
         Assert.Equal(0, renderer.ClearCallCount);
         Assert.Empty(shellController.HandledInputs);
         Assert.Equal(0, shellController.StopCallCount);
@@ -32,15 +30,14 @@ public class FlConsoleApplicationTests
     [Fact]
     public async Task RunAsync_InteractiveMode_RendersBannerAndProcessesInputUntilNull()
     {
-        var resolver = new CommandResolver<IReadOnlyList<string>>([new AppTestCommand("help", "ignored")]);
         var renderer = new AppTestRenderer();
         var promptReader = new AppTestPromptReader([new ConsoleCommand("help", []), new ConsoleCommand("monitor", []), null]);
         var console = new global::flconsole.Console.Console(promptReader, renderer);
         var shellController = new AppTestShellController();
         var app = new FlConsoleApplication(
-            resolver,
             console,
             new XmlRpcConnectionSettings("10.0.0.5", 9999),
+            CommandMessages.Defaults,
             shellController);
 
         var exitCode = await app.RunAsync([], new StringWriter());
@@ -59,15 +56,14 @@ public class FlConsoleApplicationTests
     [Fact]
     public async Task RunAsync_InteractiveMode_StopsWhenControllerNotRunning()
     {
-        var resolver = new CommandResolver<IReadOnlyList<string>>([new AppTestCommand("help", "ignored")]);
         var renderer = new AppTestRenderer();
         var promptReader = new AppTestPromptReader([new ConsoleCommand("help", [])]);
         var console = new global::flconsole.Console.Console(promptReader, renderer);
         var shellController = new AppTestShellController { IsRunning = false };
         var app = new FlConsoleApplication(
-            resolver,
             console,
             new XmlRpcConnectionSettings("127.0.0.1", 7362),
+            CommandMessages.Defaults,
             shellController);
 
         var exitCode = await app.RunAsync([], new StringWriter());
@@ -117,35 +113,44 @@ public class FlConsoleApplicationTests
         }
     }
 
-    private sealed class AppTestShellController : IShellController
+    private sealed class AppTestShellController : FlConsoleShellController
     {
-        public bool IsRunning { get; set; } = true;
+        public AppTestShellController() : base(null!, null!, CommandMessages.Defaults)
+        {
+        }
+
+        public new bool IsRunning
+        {
+            get => base.IsRunning;
+            set => base.IsRunning = value;
+        }
+
         public List<string> HandledInputs { get; } = [];
         public int StopCallCount { get; private set; }
 
-        public Task HandleCommandAsync(ConsoleCommand request)
+        public override Task HandleCommandAsync(ConsoleCommand request, CancellationToken cancellationToken = default)
         {
             HandledInputs.Add(request.Name);
             return Task.CompletedTask;
         }
 
-        public Task StopDisplayLoopAsync()
+        public override Task StopDisplayLoopAsync()
         {
             StopCallCount++;
             return Task.CompletedTask;
         }
     }
 
-    private sealed class AppTestCommand(string commandName, string responseText) : ICommand<IReadOnlyList<string>>
+    private sealed class AppTestCommand(string commandName, string responseText) : ICommand
     {
         public string CommandName { get; } = commandName;
         public bool Repeat => false;
         public TimeSpan RepeatInterval => TimeSpan.Zero;
         public bool StopsShell => false;
 
-        public Task<Stream> ExecuteAsync(IReadOnlyList<string> request)
+        public async Task ExecuteAsync(IReadOnlyList<string> request, ICommandOutput output, CancellationToken cancellationToken = default)
         {
-            return Task.FromResult<Stream>(new MemoryStream(Encoding.UTF8.GetBytes(responseText)));
+            await output.WriteAsync(responseText, cancellationToken);
         }
     }
 }

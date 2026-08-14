@@ -3,7 +3,7 @@ using flconsole.Console;
 
 namespace flconsole;
 
-public interface ICommandResolver<TRequest>
+public interface ICommandResolver
 {
-    ICommand<TRequest>? Resolve(string commandName);
+    ICommand? Resolve(string commandName);
 }

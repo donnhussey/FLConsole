@@ -9,16 +9,17 @@ internal static class Program
     {
         var configuration = BuildConfiguration();
         var serviceCollection = new ServiceCollection()
-            .AddFlConsole(configuration);
+            .AddFlConsole(configuration, args.Contains("--debug", StringComparer.OrdinalIgnoreCase));
         using var serviceProvider = serviceCollection.BuildServiceProvider();
         var app = serviceProvider.GetRequiredService<FlConsoleApplication>();
-        return await app.RunAsync(args, global::System.Console.Out);
+        return await app.RunAsync(args, System.Console.Out);
     }
 
     private static IConfiguration BuildConfiguration()
     {
         return new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("/etc/flconsole.conf", optional: true, reloadOnChange: false)
             .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
             .AddJsonFile("flconsole/appsettings.json", optional: true, reloadOnChange: false)
             .AddJsonFile(Path.Combine(AppContext.BaseDirectory, "appsettings.json"), optional: true, reloadOnChange: false)

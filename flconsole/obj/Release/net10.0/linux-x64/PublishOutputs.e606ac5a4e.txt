@@ -1,0 +1,2 @@
+/home/donn/flconsole/publish/linux-x64/appsettings.json
+/home/donn/flconsole/publish/linux-x64/flconsole

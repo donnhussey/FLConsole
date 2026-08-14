@@ -1,16 +1,14 @@
-using System.IO;
-
 namespace flconsole.Commands;
 
-public sealed class QuitCommand : ICommand<IReadOnlyList<string>>
+public sealed class QuitCommand : ICommand
 {
     public string CommandName => "quit";
     public bool Repeat => false;
     public TimeSpan RepeatInterval => TimeSpan.Zero;
     public bool StopsShell => true;
 
-    public Task<Stream> ExecuteAsync(IReadOnlyList<string> request)
+    public Task ExecuteAsync(IReadOnlyList<string> request, ICommandOutput output, CancellationToken cancellationToken = default)
     {
-        return Task.FromResult<Stream>(CommandTextStream.Create(string.Empty));
+        return Task.CompletedTask;
     }
 }

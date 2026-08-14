@@ -17,7 +17,12 @@ internal sealed class XmlRpcResponse
         var value = Value;
         if (value is null)
         {
-            return default!;
+            if (!typeof(T).IsValueType)
+            {
+                return default!;
+            }
+
+            throw new InvalidOperationException($"{methodName} returned no value.");
         }
 
         return value switch

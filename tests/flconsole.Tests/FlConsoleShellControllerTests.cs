@@ -4,7 +4,11 @@ namespace flconsole.Tests;
 
 public class FlConsoleShellControllerTests
 {
-    private static readonly ShellMessages TestMessages = new("Unknown command: {0}. Type 'help' for commands.", "Error: {0}");
+    private static readonly CommandMessages TestMessages = CommandMessages.Defaults with
+    {
+        UnknownCommandFormat = "Unknown command: {0}. Type 'help' for commands.",
+        ExecutionErrorFormat = "Error: {0}"
+    };
     [Fact]
     public async Task HandleInputAsync_BlankInput_IsIgnored()
     {
@@ -65,8 +69,8 @@ public class FlConsoleShellControllerTests
         var outputBuffer = new ConsoleOutputBuffer(MaxLines: 20);
         var renderer = new FakePromptAreaRenderer(outputBuffer);
         var promptHandler = new ConsolePromptHandler(renderer, new EnterOnlyConsoleInput());
-        var runner = new CommandDisplayRunner(renderer, promptHandler, TestMessages);
-        var resolver = new CommandResolver<IReadOnlyList<string>>([
+        var runner = new CommandExecutor(renderer, promptHandler, TestMessages);
+        var resolver = new CommandResolver([
             new ClearCommand(renderer, promptHandler)
         ]);
         var controller = new FlConsoleShellController(resolver, runner, TestMessages);
@@ -100,21 +104,21 @@ public class FlConsoleShellControllerTests
     }
 
     private static FlConsoleShellController CreateController(
-        IEnumerable<ICommand<IReadOnlyList<string>>> commands,
+        IEnumerable<ICommand> commands,
         out ConsoleOutputBuffer outputBuffer,
         out FakePromptAreaRenderer renderer)
     {
         outputBuffer = new ConsoleOutputBuffer(MaxLines: 20);
         renderer = new FakePromptAreaRenderer(outputBuffer);
         var promptHandler = new ConsolePromptHandler(renderer, new EnterOnlyConsoleInput());
-        var runner = new CommandDisplayRunner(renderer, promptHandler, TestMessages);
-        var resolver = new CommandResolver<IReadOnlyList<string>>(commands);
+        var runner = new CommandExecutor(renderer, promptHandler, TestMessages);
+        var resolver = new CommandResolver(commands);
 
         return new FlConsoleShellController(resolver, runner, TestMessages);
     }
 
     private sealed class TestCommand(string commandName, string responseText, bool repeat, TimeSpan repeatInterval)
-        : ICommand<IReadOnlyList<string>>
+        : ICommand
     {
         public string CommandName { get; } = commandName;
         public bool Repeat { get; } = repeat;
@@ -124,7 +128,7 @@ public class FlConsoleShellControllerTests
         public bool ThrowOnExecute { get; set; }
         public string ExceptionMessage { get; set; } = "error";
 
-        public Task<Stream> ExecuteAsync(IReadOnlyList<string> request)
+        public async Task ExecuteAsync(IReadOnlyList<string> request, ICommandOutput output, CancellationToken cancellationToken = default)
         {
             LastRequest = request.ToList();
             if (ThrowOnExecute)
@@ -132,8 +136,7 @@ public class FlConsoleShellControllerTests
                 throw new InvalidOperationException(ExceptionMessage);
             }
 
-            return Task.FromResult<Stream>(
-                new MemoryStream(Encoding.UTF8.GetBytes(responseText)));
+            await output.WriteAsync(responseText, cancellationToken);
         }
     }
 

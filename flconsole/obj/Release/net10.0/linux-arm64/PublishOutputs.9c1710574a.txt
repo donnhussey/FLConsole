@@ -1,0 +1,2 @@
+/tmp/tmp.GM8QuqV5NZ/appsettings.json
+/tmp/tmp.GM8QuqV5NZ/flconsole

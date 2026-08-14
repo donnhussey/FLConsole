@@ -71,7 +71,7 @@ public class CommandsTests
         Assert.Contains("adjust <frequency>", text);
         Assert.Contains("method <method-name>", text);
         Assert.Contains("identify [all] [listen-seconds] [top-candidates] [v]", text);
-        Assert.Contains("set <frequency> <rig-mode> <modem-name>", text);
+        Assert.Contains("set <frequency> [modem-name] [rig-mode]", text);
         Assert.Contains("quit", text);
     }
 
@@ -95,6 +95,24 @@ public class CommandsTests
         var text = await ReadTextAsync(await command.ExecuteAsync(Array.Empty<string>()));
 
         Assert.Equal("Usage: adjust <frequency>", text);
+    }
+
+    [Theory]
+    [InlineData("14.000.000")]
+    [InlineData("14.000")]
+    [InlineData("14000000")]
+    public async Task AdjustCommand_NormalizesFrequencyNotation(string frequency)
+    {
+        var handler = new QueueResponseHandler([
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcDoubleResponse(13998500),
+            CreateXmlRpcResponseWithoutParams()
+        ]);
+        var command = new AdjustCommand(CreateClient(handler));
+
+        var text = await ReadTextAsync(await command.ExecuteAsync([frequency]));
+
+        Assert.Equal("Adjusted frequency=14000000, dial=13998500, carrier=1500", text);
     }
 
     [Fact]
@@ -319,7 +337,7 @@ public class CommandsTests
 
         var text = await ReadTextAsync(await command.ExecuteAsync(["1", "2", "debug"]));
 
-        Assert.Equal("Usage: scan [quality-threshold] [debug]", text);
+        Assert.Equal("Usage: scan [quality-threshold]", text);
     }
 
     [Fact]
@@ -345,7 +363,7 @@ public class CommandsTests
         responsePayloads.Add(CreateXmlRpcResponseWithoutParams());
 
         var handler = new QueueResponseHandler(responsePayloads);
-        var command = new ScanCommand(CreateClient(handler), new ScanCommandSettings(0));
+        var command = new ScanCommand(CreateClient(handler), new ScanCommandSettings(0, ScanModemName: "CW"));
 
         var text = await ReadTextAsync(await command.ExecuteAsync(Array.Empty<string>()));
 
@@ -396,7 +414,7 @@ public class CommandsTests
         responsePayloads.Add(CreateXmlRpcResponseWithoutParams());
 
         var handler = new QueueResponseHandler(responsePayloads);
-        var command = new ScanCommand(CreateClient(handler), new ScanCommandSettings(0));
+        var command = new ScanCommand(CreateClient(handler), new ScanCommandSettings(0, ScanModemName: "CW"));
 
         var text = await ReadTextAsync(await command.ExecuteAsync(Array.Empty<string>()));
 
@@ -432,7 +450,7 @@ public class CommandsTests
         responsePayloads.Add(CreateXmlRpcResponseWithoutParams());
 
         var handler = new QueueResponseHandler(responsePayloads);
-        var command = new ScanCommand(CreateClient(handler), new ScanCommandSettings(0));
+        var command = new ScanCommand(CreateClient(handler), new ScanCommandSettings(0, ScanModemName: "CW"));
 
         var text = await ReadTextAsync(await command.ExecuteAsync(["5"]));
 
@@ -471,9 +489,9 @@ public class CommandsTests
         responsePayloads.Add(CreateXmlRpcResponseWithoutParams());
 
         var handler = new QueueResponseHandler(responsePayloads);
-        var command = new ScanCommand(CreateClient(handler), new ScanCommandSettings(0));
+        var command = new ScanCommand(CreateClient(handler), new ScanCommandSettings(0, ScanModemName: "CW", Debug: true));
 
-        var text = await ReadTextAsync(await command.ExecuteAsync(["5", "debug"]));
+        var text = await ReadTextAsync(await command.ExecuteAsync(["5"]));
 
         Assert.Contains("Carrier requested=100 Hz readback=100 Hz", text);
         Assert.Contains("Carrier requested=200 Hz readback=200 Hz", text);
@@ -514,9 +532,8 @@ public class CommandsTests
     {
         var command = new MethodCallCommand(CreateClient(new ThrowingHandler("boom")));
 
-        var text = await ReadTextAsync(await command.ExecuteAsync(["rig.get_mode"]));
-
-        Assert.Equal("Error: boom", text);
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => command.ExecuteAndReadAsync(["rig.get_mode"]));
+        Assert.Equal("boom", exception.Message);
     }
 
     [Fact]
@@ -539,9 +556,8 @@ public class CommandsTests
     {
         var command = new MonitorCommand(CreateClient(new ThrowingHandler("monitor failed")));
 
-        var text = await ReadTextAsync(await command.ExecuteAsync(Array.Empty<string>()));
-
-        Assert.Equal("Error: monitor failed", text);
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => command.ExecuteAndReadAsync(Array.Empty<string>()));
+        Assert.Equal("monitor failed", exception.Message);
     }
 
     [Fact]
@@ -574,16 +590,16 @@ public class CommandsTests
     }
 
     [Fact]
-    public async Task SetCommand_ImplementsGenericInterfaceAndWritesUsageForIncompleteArguments()
+    public async Task SetCommand_WritesUsageForMissingFrequency()
     {
         var command = new SetCommand(CreateClient(new HttpClientHandler()));
-        ICommand<IReadOnlyList<string>> genericCommand = command;
+        ICommand genericCommand = command;
 
-        var stream = await genericCommand.ExecuteAsync(["only", "two"]);
+        var stream = await genericCommand.ExecuteAsync([]);
         using var reader = new StreamReader(stream);
         var text = await reader.ReadToEndAsync();
 
-        Assert.Equal("Usage: set <frequency> <rig-mode> <modem-name>", text);
+        Assert.Equal("Usage: set <frequency> [modem-name] [rig-mode]", text);
     }
 
     [Fact]
@@ -598,19 +614,19 @@ public class CommandsTests
         ]);
         var command = new SetCommand(CreateClient(handler));
 
-        var text = await ReadTextAsync(await command.ExecuteAsync(["14074000", "USB", "Olivia"]));
+        var text = await ReadTextAsync(await command.ExecuteAsync(["14074000", "Olivia", "USB"]));
 
-        Assert.Equal("Set frequency=14074000, rigMode=USB, modem=Olivia", text);
+        Assert.Equal("Set frequency=14074000, modem=Olivia, rigMode=USB", text);
         Assert.Equal(5, handler.RequestBodies.Count);
         Assert.Contains("<methodName>rig.take_control</methodName>", handler.RequestBodies[0]);
         Assert.Contains("<methodName>rig.set_frequency</methodName>", handler.RequestBodies[1]);
         Assert.Contains("<double>14072500</double>", handler.RequestBodies[1]);
         Assert.Contains("<methodName>modem.set_carrier</methodName>", handler.RequestBodies[2]);
         Assert.Contains("<double>1500</double>", handler.RequestBodies[2]);
-        Assert.Contains("<methodName>rig.set_mode</methodName>", handler.RequestBodies[3]);
-        Assert.Contains("<string>USB</string>", handler.RequestBodies[3]);
-        Assert.Contains("<methodName>modem.set_by_name</methodName>", handler.RequestBodies[4]);
-        Assert.Contains("<string>Olivia</string>", handler.RequestBodies[4]);
+        Assert.Contains("<methodName>modem.set_by_name</methodName>", handler.RequestBodies[3]);
+        Assert.Contains("<string>Olivia</string>", handler.RequestBodies[3]);
+        Assert.Contains("<methodName>rig.set_mode</methodName>", handler.RequestBodies[4]);
+        Assert.Contains("<string>USB</string>", handler.RequestBodies[4]);
     }
 
     [Fact]
@@ -618,9 +634,8 @@ public class CommandsTests
     {
         var command = new SetCommand(CreateClient(new ThrowingHandler("set failed")));
 
-        var text = await ReadTextAsync(await command.ExecuteAsync(["14074000", "USB", "Olivia"]));
-
-        Assert.Equal("Error: set failed", text);
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => command.ExecuteAndReadAsync(["14074000", "Olivia", "USB"]));
+        Assert.Equal("set failed", exception.Message);
     }
 
     private static FLDigi CreateClient(HttpMessageHandler handler)

@@ -3,41 +3,41 @@ using flconsole.Console;
 
 namespace flconsole;
 
-internal sealed class FlConsoleShellController(ICommandResolver<IReadOnlyList<string>> CommandResolver, CommandDisplayRunner DisplayRunner, ShellMessages Messages) : IShellController
+internal class FlConsoleShellController(ICommandResolver CommandResolver, CommandExecutor DisplayRunner, CommandMessages Messages)
 {
-    public bool IsRunning { get; private set; } = true;
+    public virtual bool IsRunning { get; protected set; } = true;
 
-    public async Task HandleCommandAsync(ConsoleCommand request)
+    public virtual async Task HandleCommandAsync(ConsoleCommand request, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
         {
             return;
         }
 
-        await DispatchCommandAsync(request);
+            await DispatchCommandAsync(request, cancellationToken);
     }
 
-    public async Task StopDisplayLoopAsync()
+    public virtual async Task StopDisplayLoopAsync()
     {
         await DisplayRunner.StopAsync();
     }
 
-    private async Task DispatchCommandAsync(ConsoleCommand request)
+    private async Task DispatchCommandAsync(ConsoleCommand request, CancellationToken cancellationToken)
     {
         var command = CommandResolver.Resolve(request.Name);
         if (command is null)
         {
-            DisplayRunner.AppendLineAndRender(string.Format(Messages.UnknownCommandFormat, request.Name));
+            await DisplayRunner.WriteLineAsync(string.Format(Messages.UnknownCommandFormat, request.Name), cancellationToken);
             return;
         }
 
         if (command.StopsShell)
         {
-            await DisplayRunner.RunToCompletionAsync(command, request.Arguments);
+            await DisplayRunner.RunToCompletionAsync(command, request.Arguments, cancellationToken);
             IsRunning = false;
             return;
         }
 
-        await DisplayRunner.StartAsync(command, request.Arguments);
+        await DisplayRunner.StartAsync(command, request.Arguments, cancellationToken);
     }
 }

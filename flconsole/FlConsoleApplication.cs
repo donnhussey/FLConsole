@@ -2,25 +2,26 @@ using flconsole.Commands;
 
 namespace flconsole;
 
-public sealed class FlConsoleApplication(
-    ICommandResolver<IReadOnlyList<string>> commandResolver,
+internal sealed class FlConsoleApplication(
     IConsole console,
     XmlRpcConnectionSettings connectionSettings,
-    IShellController shellController)
+    CommandMessages commandMessages,
+    FlConsoleShellController shellController)
 {
-    public async Task<int> RunAsync(string[] args, TextWriter output)
+    public async Task<int> RunAsync(string[] args, TextWriter output, CancellationToken cancellationToken = default)
     {
         if (args.Contains("--help") || args.Contains("-h"))
         {
-            return await PrintUsageAsync(output);
+            await output.WriteLineAsync(commandMessages.HelpText);
+            return 0;
         }
 
         console.Display.Clear();
         console.Display.AppendLine($"FLDigi XML-RPC shell (host={connectionSettings.Host}, port={connectionSettings.Port})");
-        console.Display.AppendLine("Type 'help' for commands, or 'quit' to exit.");
+        console.Display.AppendLine(commandMessages.StartupHint);
         console.Display.ShowPrompt(string.Empty, 0);
 
-        while (shellController.IsRunning)
+        while (shellController.IsRunning && !cancellationToken.IsCancellationRequested)
         {
             var command = console.CommandSource.ReadCommand();
             if (command is null)
@@ -28,20 +29,11 @@ public sealed class FlConsoleApplication(
                 break;
             }
 
-            await shellController.HandleCommandAsync(command);
+            await shellController.HandleCommandAsync(command, cancellationToken);
         }
 
         await shellController.StopDisplayLoopAsync();
         return 0;
     }
 
-    private async Task<int> PrintUsageAsync(TextWriter output)
-    {
-        var helpCommand = commandResolver.Resolve("help")
-            ?? throw new InvalidOperationException("Help command is not registered.");
-        using var stream = await helpCommand.ExecuteAsync(Array.Empty<string>());
-        using var reader = new StreamReader(stream);
-        await output.WriteLineAsync(await reader.ReadToEndAsync());
-        return 0;
-    }
 }

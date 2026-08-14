@@ -1,42 +1,34 @@
 using System.Globalization;
-using System.IO;
 using flconsole.XmlRpc.Models;
 
 namespace flconsole.Commands;
 
-public sealed class IdentifyCommand(FLDigi _fldigi, IdentifyCommandSettings? settings = null) : ICommand<IReadOnlyList<string>>
+public sealed class IdentifyCommand(FLDigi _fldigi, IdentifyCommandSettings? settings = null, CommandMessages? messages = null, FrequencyCommandSettings? frequencySettings = null) : ICommand
 {
-    private const double MinCarrierOffsetHz = 1;
-    private const double MaxCarrierOffsetHz = 3000;
-    private const double ModemCarrierOffset = 1500;
-    private const int DefaultRsidListenSeconds = 5;
-    private const int DefaultTopCandidates = 5;
-    private const double MinimumQualityToIdentify = 5;
-    private static readonly TimeSpan FrequencyCarrierSettleDelay = TimeSpan.FromMilliseconds(150);
-    private static readonly TimeSpan RsidSampleInterval = TimeSpan.FromMilliseconds(500);
-    private static readonly TimeSpan ModeSettleDelay = TimeSpan.FromMilliseconds(300);
-    private static readonly TimeSpan HeuristicQualitySampleDelay = TimeSpan.FromMilliseconds(1500);
     private readonly IdentifyCommandSettings _settings = settings ?? new IdentifyCommandSettings([]);
+    private readonly CommandMessages _messages = messages ?? CommandMessages.Defaults;
+    private readonly FrequencyTuner _tuner = new(_fldigi, frequencySettings ?? new FrequencyCommandSettings(1, 3000, 1500, 150));
+    private TimeSpan RsidSampleInterval => TimeSpan.FromMilliseconds(_settings.RsidSampleIntervalMilliseconds);
+    private TimeSpan ModeSettleDelay => TimeSpan.FromMilliseconds(_settings.ModeSettleDelayMilliseconds);
+    private TimeSpan HeuristicQualitySampleDelay => TimeSpan.FromMilliseconds(_settings.HeuristicQualitySampleDelayMilliseconds);
 
     public string CommandName => "identify";
     public bool Repeat => false;
     public TimeSpan RepeatInterval => TimeSpan.Zero;
     public bool StopsShell => false;
 
-    public async Task<Stream> ExecuteAsync(IReadOnlyList<string> request)
+    public async Task ExecuteAsync(IReadOnlyList<string> request, ICommandOutput output, CancellationToken cancellationToken = default)
     {
         if (!TryParseRequest(request, out var useAllModems, out var listenSeconds, out var topCandidates, out var verbose))
         {
-            return CommandTextStream.Create("Usage: identify [all] [listen-seconds] [top-candidates] [v]");
+            await output.WriteAsync(_messages.IdentifyUsage, cancellationToken); return;
         }
 
-        return CommandTextStream.Create(async output =>
-        {
-            var originalModemName = string.Empty;
-            var originalRsidEnabled = false;
+        var originalModemName = string.Empty;
+        var originalRsidEnabled = false;
 
-            try
-            {
+        try
+        {
                 originalModemName = await _fldigi.Modem.GetNameAsync();
                 originalRsidEnabled = await _fldigi.Main.GetRsidAsync();
 
@@ -44,62 +36,58 @@ public sealed class IdentifyCommand(FLDigi _fldigi, IdentifyCommandSettings? set
                 var currentDialFrequency = await _fldigi.Rig.GetFrequencyAsync();
                 var currentCarrierOffset = await _fldigi.Modem.GetCarrierAsync();
                 var signalFrequency = currentDialFrequency + currentCarrierOffset;
-                var centeredDialFrequency = signalFrequency - ModemCarrierOffset;
+                var centeredDialFrequency = signalFrequency - _settings.ModemCarrierOffset;
 
-                await SetFrequencyAndCarrierAsync(centeredDialFrequency, ModemCarrierOffset);
+                await _tuner.SetAsync(centeredDialFrequency, _settings.ModemCarrierOffset, cancellationToken);
 
-                await output.WriteLineAsync($"Current modem: {originalModemName}");
-                await output.WriteLineAsync($"Signal frequency: {signalFrequency.ToString("0.###", CultureInfo.InvariantCulture)} Hz");
-                await output.WriteLineAsync($"Centered dial frequency: {centeredDialFrequency.ToString("0.###", CultureInfo.InvariantCulture)} Hz");
-                await output.WriteLineAsync($"Listening for RSID for {listenSeconds} second(s)...");
+                await output.WriteLineAsync(string.Format(_messages.IdentifyCurrentModem, originalModemName));
+                await output.WriteLineAsync(string.Format(CultureInfo.InvariantCulture, _messages.IdentifySignalFrequency, signalFrequency));
+                await output.WriteLineAsync(string.Format(CultureInfo.InvariantCulture, _messages.IdentifyCenteredFrequency, centeredDialFrequency));
+                await output.WriteLineAsync(string.Format(_messages.IdentifyListening, listenSeconds));
 
                 if (!originalRsidEnabled)
                 {
                     await _fldigi.Main.SetRsidAsync(true);
                 }
 
-                var rsidResult = await TryIdentifyByRsidAsync(originalModemName, listenSeconds);
+                var rsidResult = await TryIdentifyByRsidAsync(originalModemName, listenSeconds, cancellationToken);
                 if (rsidResult is not null)
                 {
-                    await output.WriteAsync($"RSID identified modem: {rsidResult.ModemName} (quality={rsidResult.Quality.ToString("0.###", CultureInfo.InvariantCulture)})");
+                    await output.WriteAsync(string.Format(CultureInfo.InvariantCulture, _messages.IdentifyRsidResult, rsidResult.ModemName, rsidResult.Quality));
                     return;
                 }
 
                 var currentQuality = await _fldigi.Modem.GetQualityAsync();
-                if (currentQuality < MinimumQualityToIdentify)
+                if (currentQuality < _settings.MinimumQualityToIdentify)
                 {
-                    await output.WriteAsync($"nothing to identify, quality was {currentQuality.ToString("0.###", CultureInfo.InvariantCulture)}");
+                    await output.WriteAsync(string.Format(CultureInfo.InvariantCulture, _messages.IdentifyNothing, currentQuality));
                     return;
                 }
 
                 await output.WriteLineAsync("No RSID modem switch detected; running heuristic modem sweep.");
                 var availableModems = await _fldigi.Modem.GetNamesAsync();
                 var modemCandidates = ResolveModemCandidates(availableModems, useAllModems);
-                var candidates = await RankCandidatesAsync(modemCandidates, topCandidates, verbose, output);
+                var candidates = await RankCandidatesAsync(modemCandidates, topCandidates, verbose, output, cancellationToken);
 
                 if (candidates.Count == 0)
                 {
-                    await output.WriteAsync("No modem candidates were available from FLDigi.");
+                    await output.WriteAsync(_messages.IdentifyNoCandidates);
                     return;
                 }
 
-                await output.WriteLineAsync("Top candidates:");
+                await output.WriteLineAsync(_messages.IdentifyTopCandidates);
                 for (var index = 0; index < candidates.Count; index++)
                 {
                     var candidate = candidates[index];
-                    await output.WriteLineAsync($"  {index + 1}. {candidate.ModemName} score={candidate.Score.ToString("0.###", CultureInfo.InvariantCulture)} quality={candidate.Quality.ToString("0.###", CultureInfo.InvariantCulture)}");
+                    await output.WriteLineAsync(string.Format(CultureInfo.InvariantCulture, _messages.IdentifyCandidate, index + 1, candidate.ModemName, candidate.Score, candidate.Quality));
                 }
 
                 var bestCandidate = candidates[0];
                 await _fldigi.Modem.SetByNameAsync(bestCandidate.ModemName);
-                await output.WriteAsync($"Selected modem: {bestCandidate.ModemName}");
-            }
-            catch (Exception ex)
-            {
-                await output.WriteAsync($"Error: {ex.Message}");
-            }
-            finally
-            {
+                await output.WriteAsync(string.Format(_messages.IdentifySelected, bestCandidate.ModemName));
+        }
+        finally
+        {
                 try
                 {
                     await _fldigi.Main.SetRsidAsync(originalRsidEnabled);
@@ -118,15 +106,14 @@ public sealed class IdentifyCommand(FLDigi _fldigi, IdentifyCommandSettings? set
                     {
                     }
                 }
-            }
-        });
+        }
     }
 
-    private static bool TryParseRequest(IReadOnlyList<string> request, out bool useAllModems, out int listenSeconds, out int topCandidates, out bool verbose)
+    private bool TryParseRequest(IReadOnlyList<string> request, out bool useAllModems, out int listenSeconds, out int topCandidates, out bool verbose)
     {
         useAllModems = false;
-        listenSeconds = DefaultRsidListenSeconds;
-        topCandidates = DefaultTopCandidates;
+        listenSeconds = _settings.DefaultRsidListenSeconds;
+        topCandidates = _settings.DefaultTopCandidates;
         verbose = false;
 
         if (request.Count > 4)
@@ -159,7 +146,7 @@ public sealed class IdentifyCommand(FLDigi _fldigi, IdentifyCommandSettings? set
                 continue;
             }
 
-            if (!int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedValue) || parsedValue <= 0)
+            if (!CommandArguments.TryGetPositiveInt(token, out var parsedValue))
             {
                 return false;
             }
@@ -185,14 +172,14 @@ public sealed class IdentifyCommand(FLDigi _fldigi, IdentifyCommandSettings? set
         return true;
     }
 
-    private async Task<RsidDetectionResult?> TryIdentifyByRsidAsync(string initialModemName, int listenSeconds)
+    private async Task<RsidDetectionResult?> TryIdentifyByRsidAsync(string initialModemName, int listenSeconds, CancellationToken cancellationToken)
     {
         var sampleCount = Math.Max(1, (int)Math.Ceiling(listenSeconds * (1000d / RsidSampleInterval.TotalMilliseconds)));
         for (var sample = 0; sample < sampleCount; sample++)
         {
             if (sample > 0)
             {
-                await Task.Delay(RsidSampleInterval);
+                await Task.Delay(RsidSampleInterval, cancellationToken);
             }
 
             var currentModem = await _fldigi.Modem.GetNameAsync();
@@ -206,35 +193,15 @@ public sealed class IdentifyCommand(FLDigi _fldigi, IdentifyCommandSettings? set
         return null;
     }
 
-    private async Task SetFrequencyAndCarrierAsync(double dialFrequency, double carrierOffset)
-    {
-        var validCarrierOffset = EnsureValidCarrierOffset(carrierOffset);
-
-        await _fldigi.Rig.SetFrequencyAsync(dialFrequency);
-        await Task.Delay(FrequencyCarrierSettleDelay);
-        await _fldigi.Modem.SetCarrierAsync(validCarrierOffset);
-        await Task.Delay(FrequencyCarrierSettleDelay);
-    }
-
-    private static double EnsureValidCarrierOffset(double carrierOffset)
-    {
-        if (carrierOffset < MinCarrierOffsetHz || carrierOffset > MaxCarrierOffsetHz)
-        {
-            throw new InvalidOperationException($"Carrier offset must be between {MinCarrierOffsetHz.ToString("0", CultureInfo.InvariantCulture)} and {MaxCarrierOffsetHz.ToString("0", CultureInfo.InvariantCulture)} Hz.");
-        }
-
-        return carrierOffset;
-    }
-
-    private async Task<List<ModeCandidate>> RankCandidatesAsync(IReadOnlyList<string> modemCandidates, int topCandidates, bool verbose, CommandStreamBuffer output)
+    private async Task<List<ModeCandidate>> RankCandidatesAsync(IReadOnlyList<string> modemCandidates, int topCandidates, bool verbose, ICommandOutput output, CancellationToken cancellationToken)
     {
         var candidates = new List<ModeCandidate>();
 
         foreach (var modemName in modemCandidates)
         {
             await _fldigi.Modem.SetByNameAsync(modemName);
-            await Task.Delay(ModeSettleDelay);
-            await Task.Delay(HeuristicQualitySampleDelay);
+            await Task.Delay(ModeSettleDelay, cancellationToken);
+            await Task.Delay(HeuristicQualitySampleDelay, cancellationToken);
 
             var quality = await _fldigi.Modem.GetQualityAsync();
             var rxText = await GetRxTextAsync();
@@ -244,7 +211,7 @@ public sealed class IdentifyCommand(FLDigi _fldigi, IdentifyCommandSettings? set
 
             if (verbose)
             {
-                await output.WriteLineAsync($"Verbose candidate: {modemName} quality={quality.ToString("0.###", CultureInfo.InvariantCulture)} text={textSignalScore.ToString("0.###", CultureInfo.InvariantCulture)} score={score.ToString("0.###", CultureInfo.InvariantCulture)}");
+                await output.WriteLineAsync(string.Format(CultureInfo.InvariantCulture, _messages.IdentifyVerboseCandidate, modemName, quality, textSignalScore, score));
             }
         }
 
