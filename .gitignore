@@ -1,1 +1,8 @@
 /scripts/
+/.github/
+/.vscode/
+/bin/
+/dist/
+/obj/
+/publish/
+/TestResults/
