@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("flconsole.XmlRpc")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+73246d43d3a297a4b8a5fc3f81e548245443c832")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9a379edf6fb16480ec922deb025d027752d7daad")]
 [assembly: System.Reflection.AssemblyProductAttribute("flconsole.XmlRpc")]
 [assembly: System.Reflection.AssemblyTitleAttribute("flconsole.XmlRpc")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -1,0 +1,14 @@
+/home/runner/work/FLConsole/FLConsole/bin/Release/net10.0/flconsole.run
+/home/runner/work/FLConsole/FLConsole/bin/Release/net10.0/flconsole.run.deps.json
+/home/runner/work/FLConsole/FLConsole/bin/Release/net10.0/flconsole.run.runtimeconfig.json
+/home/runner/work/FLConsole/FLConsole/bin/Release/net10.0/flconsole.run.dll
+/home/runner/work/FLConsole/FLConsole/bin/Release/net10.0/flconsole.run.pdb
+/home/runner/work/FLConsole/FLConsole/obj/Release/net10.0/flconsole.run.GeneratedMSBuildEditorConfig.editorconfig
+/home/runner/work/FLConsole/FLConsole/obj/Release/net10.0/flconsole.run.AssemblyInfoInputs.cache
+/home/runner/work/FLConsole/FLConsole/obj/Release/net10.0/flconsole.run.AssemblyInfo.cs
+/home/runner/work/FLConsole/FLConsole/obj/Release/net10.0/flconsole.run.csproj.CoreCompileInputs.cache
+/home/runner/work/FLConsole/FLConsole/obj/Release/net10.0/flconsole.run.dll
+/home/runner/work/FLConsole/FLConsole/obj/Release/net10.0/refint/flconsole.run.dll
+/home/runner/work/FLConsole/FLConsole/obj/Release/net10.0/flconsole.run.pdb
+/home/runner/work/FLConsole/FLConsole/obj/Release/net10.0/flconsole.run.genruntimeconfig.cache
+/home/runner/work/FLConsole/FLConsole/obj/Release/net10.0/ref/flconsole.run.dll

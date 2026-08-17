@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "/home/donn/flconsole/tests/flconsole.Tests/flconsole.Tests.csproj": {}
+    "/home/runner/work/FLConsole/FLConsole/tests/flconsole.Tests/flconsole.Tests.csproj": {}
   },
   "projects": {
-    "/home/donn/flconsole/flconsole.Console/flconsole.Console.csproj": {
+    "/home/runner/work/FLConsole/FLConsole/flconsole.Console/flconsole.Console.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/home/donn/flconsole/flconsole.Console/flconsole.Console.csproj",
+        "projectUniqueName": "/home/runner/work/FLConsole/FLConsole/flconsole.Console/flconsole.Console.csproj",
         "projectName": "flconsole.Console",
-        "projectPath": "/home/donn/flconsole/flconsole.Console/flconsole.Console.csproj",
-        "packagesPath": "/home/donn/.nuget/packages/",
-        "outputPath": "/home/donn/flconsole/flconsole.Console/obj/",
+        "projectPath": "/home/runner/work/FLConsole/FLConsole/flconsole.Console/flconsole.Console.csproj",
+        "packagesPath": "/home/runner/.nuget/packages/",
+        "outputPath": "/home/runner/work/FLConsole/FLConsole/flconsole.Console/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "/home/donn/.nuget/NuGet/NuGet.Config"
+          "/home/runner/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net10.0"
@@ -27,8 +27,8 @@
             "framework": "net10.0",
             "targetAlias": "net10.0",
             "projectReferences": {
-              "/home/donn/flconsole/flconsole.XmlRpc/flconsole.XmlRpc.csproj": {
-                "projectPath": "/home/donn/flconsole/flconsole.XmlRpc/flconsole.XmlRpc.csproj"
+              "/home/runner/work/FLConsole/FLConsole/flconsole.XmlRpc/flconsole.XmlRpc.csproj": {
+                "projectPath": "/home/runner/work/FLConsole/FLConsole/flconsole.XmlRpc/flconsole.XmlRpc.csproj"
               }
             }
           }
@@ -43,7 +43,7 @@
           "auditLevel": "low",
           "auditMode": "all"
         },
-        "SdkAnalysisLevel": "10.0.400"
+        "SdkAnalysisLevel": "10.0.300"
       },
       "frameworks": {
         "net10.0": {
@@ -65,7 +65,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.400/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.302/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.CSharp": "(,4.7.32767]",
             "Microsoft.VisualBasic": "(,10.4.32767]",
@@ -343,17 +343,17 @@
         }
       }
     },
-    "/home/donn/flconsole/flconsole.XmlRpc/flconsole.XmlRpc.csproj": {
+    "/home/runner/work/FLConsole/FLConsole/flconsole.XmlRpc/flconsole.XmlRpc.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/home/donn/flconsole/flconsole.XmlRpc/flconsole.XmlRpc.csproj",
+        "projectUniqueName": "/home/runner/work/FLConsole/FLConsole/flconsole.XmlRpc/flconsole.XmlRpc.csproj",
         "projectName": "flconsole.XmlRpc",
-        "projectPath": "/home/donn/flconsole/flconsole.XmlRpc/flconsole.XmlRpc.csproj",
-        "packagesPath": "/home/donn/.nuget/packages/",
-        "outputPath": "/home/donn/flconsole/flconsole.XmlRpc/obj/",
+        "projectPath": "/home/runner/work/FLConsole/FLConsole/flconsole.XmlRpc/flconsole.XmlRpc.csproj",
+        "packagesPath": "/home/runner/.nuget/packages/",
+        "outputPath": "/home/runner/work/FLConsole/FLConsole/flconsole.XmlRpc/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "/home/donn/.nuget/NuGet/NuGet.Config"
+          "/home/runner/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net10.0"
@@ -378,7 +378,7 @@
           "auditLevel": "low",
           "auditMode": "all"
         },
-        "SdkAnalysisLevel": "10.0.400"
+        "SdkAnalysisLevel": "10.0.300"
       },
       "frameworks": {
         "net10.0": {
@@ -400,7 +400,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.400/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.302/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.CSharp": "(,4.7.32767]",
             "Microsoft.VisualBasic": "(,10.4.32767]",
@@ -678,17 +678,17 @@
         }
       }
     },
-    "/home/donn/flconsole/flconsole/flconsole.csproj": {
+    "/home/runner/work/FLConsole/FLConsole/flconsole/flconsole.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/home/donn/flconsole/flconsole/flconsole.csproj",
+        "projectUniqueName": "/home/runner/work/FLConsole/FLConsole/flconsole/flconsole.csproj",
         "projectName": "flconsole",
-        "projectPath": "/home/donn/flconsole/flconsole/flconsole.csproj",
-        "packagesPath": "/home/donn/.nuget/packages/",
-        "outputPath": "/home/donn/flconsole/flconsole/obj/",
+        "projectPath": "/home/runner/work/FLConsole/FLConsole/flconsole/flconsole.csproj",
+        "packagesPath": "/home/runner/.nuget/packages/",
+        "outputPath": "/home/runner/work/FLConsole/FLConsole/flconsole/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "/home/donn/.nuget/NuGet/NuGet.Config"
+          "/home/runner/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net10.0"
@@ -701,11 +701,11 @@
             "framework": "net10.0",
             "targetAlias": "net10.0",
             "projectReferences": {
-              "/home/donn/flconsole/flconsole.Console/flconsole.Console.csproj": {
-                "projectPath": "/home/donn/flconsole/flconsole.Console/flconsole.Console.csproj"
+              "/home/runner/work/FLConsole/FLConsole/flconsole.Console/flconsole.Console.csproj": {
+                "projectPath": "/home/runner/work/FLConsole/FLConsole/flconsole.Console/flconsole.Console.csproj"
               },
-              "/home/donn/flconsole/flconsole.XmlRpc/flconsole.XmlRpc.csproj": {
-                "projectPath": "/home/donn/flconsole/flconsole.XmlRpc/flconsole.XmlRpc.csproj"
+              "/home/runner/work/FLConsole/FLConsole/flconsole.XmlRpc/flconsole.XmlRpc.csproj": {
+                "projectPath": "/home/runner/work/FLConsole/FLConsole/flconsole.XmlRpc/flconsole.XmlRpc.csproj"
               }
             }
           }
@@ -720,7 +720,7 @@
           "auditLevel": "low",
           "auditMode": "all"
         },
-        "SdkAnalysisLevel": "10.0.400"
+        "SdkAnalysisLevel": "10.0.300"
       },
       "frameworks": {
         "net10.0": {
@@ -756,7 +756,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.400/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.302/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.CSharp": "(,4.7.32767]",
             "Microsoft.VisualBasic": "(,10.4.32767]",
@@ -1034,17 +1034,17 @@
         }
       }
     },
-    "/home/donn/flconsole/tests/flconsole.Tests/flconsole.Tests.csproj": {
+    "/home/runner/work/FLConsole/FLConsole/tests/flconsole.Tests/flconsole.Tests.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/home/donn/flconsole/tests/flconsole.Tests/flconsole.Tests.csproj",
+        "projectUniqueName": "/home/runner/work/FLConsole/FLConsole/tests/flconsole.Tests/flconsole.Tests.csproj",
         "projectName": "flconsole.Tests",
-        "projectPath": "/home/donn/flconsole/tests/flconsole.Tests/flconsole.Tests.csproj",
-        "packagesPath": "/home/donn/.nuget/packages/",
-        "outputPath": "/home/donn/flconsole/tests/flconsole.Tests/obj/",
+        "projectPath": "/home/runner/work/FLConsole/FLConsole/tests/flconsole.Tests/flconsole.Tests.csproj",
+        "packagesPath": "/home/runner/.nuget/packages/",
+        "outputPath": "/home/runner/work/FLConsole/FLConsole/tests/flconsole.Tests/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "/home/donn/.nuget/NuGet/NuGet.Config"
+          "/home/runner/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net10.0"
@@ -1057,11 +1057,11 @@
             "framework": "net10.0",
             "targetAlias": "net10.0",
             "projectReferences": {
-              "/home/donn/flconsole/flconsole.XmlRpc/flconsole.XmlRpc.csproj": {
-                "projectPath": "/home/donn/flconsole/flconsole.XmlRpc/flconsole.XmlRpc.csproj"
+              "/home/runner/work/FLConsole/FLConsole/flconsole.XmlRpc/flconsole.XmlRpc.csproj": {
+                "projectPath": "/home/runner/work/FLConsole/FLConsole/flconsole.XmlRpc/flconsole.XmlRpc.csproj"
               },
-              "/home/donn/flconsole/flconsole/flconsole.csproj": {
-                "projectPath": "/home/donn/flconsole/flconsole/flconsole.csproj"
+              "/home/runner/work/FLConsole/FLConsole/flconsole/flconsole.csproj": {
+                "projectPath": "/home/runner/work/FLConsole/FLConsole/flconsole/flconsole.csproj"
               }
             }
           }
@@ -1076,7 +1076,7 @@
           "auditLevel": "low",
           "auditMode": "all"
         },
-        "SdkAnalysisLevel": "10.0.400"
+        "SdkAnalysisLevel": "10.0.300"
       },
       "frameworks": {
         "net10.0": {
@@ -1124,7 +1124,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.400/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.302/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.CSharp": "(,4.7.32767]",
             "Microsoft.VisualBasic": "(,10.4.32767]",

@@ -7,3 +7,14 @@
 /home/donn/flconsole/flconsole.XmlRpc/obj/Release/net10.0/flconsole.XmlRpc.dll
 /home/donn/flconsole/flconsole.XmlRpc/obj/Release/net10.0/refint/flconsole.XmlRpc.dll
 /home/donn/flconsole/flconsole.XmlRpc/obj/Release/net10.0/ref/flconsole.XmlRpc.dll
+/home/runner/work/FLConsole/FLConsole/flconsole.XmlRpc/bin/Release/net10.0/flconsole.XmlRpc.deps.json
+/home/runner/work/FLConsole/FLConsole/flconsole.XmlRpc/bin/Release/net10.0/flconsole.XmlRpc.dll
+/home/runner/work/FLConsole/FLConsole/flconsole.XmlRpc/bin/Release/net10.0/flconsole.XmlRpc.pdb
+/home/runner/work/FLConsole/FLConsole/flconsole.XmlRpc/obj/Release/net10.0/flconsole.XmlRpc.GeneratedMSBuildEditorConfig.editorconfig
+/home/runner/work/FLConsole/FLConsole/flconsole.XmlRpc/obj/Release/net10.0/flconsole.XmlRpc.AssemblyInfoInputs.cache
+/home/runner/work/FLConsole/FLConsole/flconsole.XmlRpc/obj/Release/net10.0/flconsole.XmlRpc.AssemblyInfo.cs
+/home/runner/work/FLConsole/FLConsole/flconsole.XmlRpc/obj/Release/net10.0/flconsole.XmlRpc.csproj.CoreCompileInputs.cache
+/home/runner/work/FLConsole/FLConsole/flconsole.XmlRpc/obj/Release/net10.0/flconsole.XmlRpc.dll
+/home/runner/work/FLConsole/FLConsole/flconsole.XmlRpc/obj/Release/net10.0/refint/flconsole.XmlRpc.dll
+/home/runner/work/FLConsole/FLConsole/flconsole.XmlRpc/obj/Release/net10.0/flconsole.XmlRpc.pdb
+/home/runner/work/FLConsole/FLConsole/flconsole.XmlRpc/obj/Release/net10.0/ref/flconsole.XmlRpc.dll
