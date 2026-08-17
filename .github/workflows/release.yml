@@ -84,7 +84,7 @@ jobs:
         run: dotnet build ${{ env.SOLUTION_PATH }} --configuration Release --no-restore
 
       - name: Run tests
-        run: dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release
+        run: dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-build
 
   publish:
     name: Publish ${{ matrix.runtime }}
@@ -115,7 +115,7 @@ jobs:
         shell: bash
         run: |
           output_dir="artifacts/${{ matrix.runtime }}/publish"
-          dotnet publish "${APP_PROJECT_PATH}" \
+          dotnet publish "${{ env.APP_PROJECT_PATH }}" \
             --configuration Release \
             --runtime "${{ matrix.runtime }}" \
             --self-contained true \
