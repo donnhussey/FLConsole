@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("flconsole.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9a379edf6fb16480ec922deb025d027752d7daad")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c7db5a5ea159885533898c546c2282ab57c21570")]
 [assembly: System.Reflection.AssemblyProductAttribute("flconsole.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("flconsole.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

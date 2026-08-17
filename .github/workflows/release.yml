@@ -109,7 +109,6 @@ jobs:
             --runtime "${{ matrix.runtime }}" \
             --self-contained false \
             -p:PublishSingleFile=true \
-            -p:EnableCompressionInSingleFile=true \
             --output "${output_dir}"
 
       - name: Create archive

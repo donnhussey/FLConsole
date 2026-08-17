@@ -37,7 +37,7 @@ public sealed class TxCommand(FLDigi fldigi, TxIdentityState identityState, TxCo
             await Task.Delay(PollInterval, cancellationToken);
         }
 
-        //await fldigi.Text.ClearTxAsync();
+        await fldigi.Text.ClearTxAsync();
         await output.WriteLineAsync(_messages.TxDone, cancellationToken);
     }
 }
