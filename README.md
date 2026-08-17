@@ -329,7 +329,7 @@ dotnet run --project flconsole/flconsole.csproj
 
 ## Releases
 
-GitHub Actions can build and publish release assets with the workflow at `/home/runner/work/FLConsole/FLConsole/.github/workflows/release.yml`.
+GitHub Actions can build and publish release assets with the workflow at `.github/workflows/release.yml`.
 
 - Push a tag that starts with `v` (for example `v1.2.3`) to build a release automatically.
 - Or run the **Release** workflow manually and provide the tag to create from the selected commit.

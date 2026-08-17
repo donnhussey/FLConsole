@@ -30,51 +30,14 @@ env:
   APP_PROJECT_PATH: flconsole/flconsole.csproj
 
 jobs:
-  validate:
-    name: Build and test
+  prepare:
+    name: Resolve release metadata
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      prerelease: ${{ steps.release.outputs.prerelease }}
 
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Restore dependencies
-        run: dotnet restore ${{ env.SOLUTION_PATH }}
-
-      - name: Build solution
-        run: dotnet build ${{ env.SOLUTION_PATH }} --configuration Release --no-restore
-
-      - name: Run tests
-        run: dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-build
-
-  publish:
-    name: Publish ${{ matrix.runtime }}
-    needs: validate
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        runtime:
-          - linux-x64
-          - linux-arm64
-          - win-x64
-          - osx-x64
-          - osx-arm64
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
       - name: Resolve release metadata
         id: release
         shell: bash
@@ -100,6 +63,54 @@ jobs:
           echo "tag=${release_tag}" >> "${GITHUB_OUTPUT}"
           echo "prerelease=${prerelease}" >> "${GITHUB_OUTPUT}"
 
+  validate:
+    name: Build and test
+    needs: prepare
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.SOLUTION_PATH }}
+
+      - name: Build solution
+        run: dotnet build ${{ env.SOLUTION_PATH }} --configuration Release --no-restore
+
+      - name: Run tests
+        run: dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-build
+
+  publish:
+    name: Publish ${{ matrix.runtime }}
+    needs:
+      - prepare
+      - validate
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime:
+          - linux-x64
+          - linux-arm64
+          - win-x64
+          - osx-x64
+          - osx-arm64
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
       - name: Publish application
         shell: bash
         run: |
@@ -115,7 +126,7 @@ jobs:
         shell: bash
         run: |
           archive_dir="artifacts/packages"
-          archive_name="flconsole-${{ steps.release.outputs.tag }}-${{ matrix.runtime }}.zip"
+          archive_name="flconsole-${{ needs.prepare.outputs.tag }}-${{ matrix.runtime }}.zip"
 
           mkdir -p "${archive_dir}"
           cd "artifacts/${{ matrix.runtime }}/publish"
@@ -125,38 +136,20 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: flconsole-${{ matrix.runtime }}
-          path: artifacts/packages/flconsole-${{ steps.release.outputs.tag }}-${{ matrix.runtime }}.zip
+          path: artifacts/packages/flconsole-${{ needs.prepare.outputs.tag }}-${{ matrix.runtime }}.zip
           if-no-files-found: error
           retention-days: 7
 
   release:
     name: Create release
-    needs: publish
+    needs:
+      - prepare
+      - publish
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
-      - name: Resolve release metadata
-        id: release
-        shell: bash
-        run: |
-          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
-            release_tag="${GITHUB_REF_NAME}"
-            prerelease="false"
-          else
-            release_tag="${{ inputs.tag }}"
-            prerelease="${{ inputs.prerelease }}"
-          fi
-
-          if [[ -z "${release_tag}" ]]; then
-            echo "::error::Release tag is required."
-            exit 1
-          fi
-
-          echo "tag=${release_tag}" >> "${GITHUB_OUTPUT}"
-          echo "prerelease=${prerelease}" >> "${GITHUB_OUTPUT}"
-
       - name: Download release packages
         uses: actions/download-artifact@v4
         with:
@@ -177,21 +170,21 @@ jobs:
             exit 1
           fi
 
-          if gh release view "${{ steps.release.outputs.tag }}" >/dev/null 2>&1; then
-            gh release upload "${{ steps.release.outputs.tag }}" "${files[@]}" --clobber
+          if gh release view "${{ needs.prepare.outputs.tag }}" >/dev/null 2>&1; then
+            gh release upload "${{ needs.prepare.outputs.tag }}" "${files[@]}" --clobber
             exit 0
           fi
 
           args=(
             release create
-            "${{ steps.release.outputs.tag }}"
+            "${{ needs.prepare.outputs.tag }}"
             "${files[@]}"
-            --title "${{ steps.release.outputs.tag }}"
+            --title "${{ needs.prepare.outputs.tag }}"
             --generate-notes
             --target "${GITHUB_SHA}"
           )
 
-          if [[ "${{ steps.release.outputs.prerelease }}" == "true" ]]; then
+          if [[ "${{ needs.prepare.outputs.prerelease }}" == "true" ]]; then
             args+=(--prerelease)
           fi
 

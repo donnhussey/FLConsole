@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "WNsncX+cgGU=",
+  "dgSpecHash": "LXNUn/ypzRc=",
   "success": true,
   "projectFilePath": "/home/runner/work/FLConsole/FLConsole/flconsole/flconsole.csproj",
   "expectedPackageFiles": [
@@ -16,8 +16,9 @@
     "/home/runner/.nuget/packages/microsoft.extensions.primitives/9.0.0/microsoft.extensions.primitives.9.0.0.nupkg.sha512",
     "/home/runner/.nuget/packages/microsoft.net.illink.tasks/10.0.10/microsoft.net.illink.tasks.10.0.10.nupkg.sha512",
     "/home/runner/.nuget/packages/spectre.console/0.49.0/spectre.console.0.49.0.nupkg.sha512",
-    "/home/runner/.nuget/packages/microsoft.netcore.app.runtime.linux-x64/10.0.10/microsoft.netcore.app.runtime.linux-x64.10.0.10.nupkg.sha512",
-    "/home/runner/.nuget/packages/microsoft.aspnetcore.app.runtime.linux-x64/10.0.10/microsoft.aspnetcore.app.runtime.linux-x64.10.0.10.nupkg.sha512"
+    "/home/runner/.nuget/packages/microsoft.netcore.app.runtime.osx-arm64/10.0.10/microsoft.netcore.app.runtime.osx-arm64.10.0.10.nupkg.sha512",
+    "/home/runner/.nuget/packages/microsoft.aspnetcore.app.runtime.osx-arm64/10.0.10/microsoft.aspnetcore.app.runtime.osx-arm64.10.0.10.nupkg.sha512",
+    "/home/runner/.nuget/packages/microsoft.netcore.app.host.osx-arm64/10.0.10/microsoft.netcore.app.host.osx-arm64.10.0.10.nupkg.sha512"
   ],
   "logs": []
 }

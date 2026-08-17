@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("flconsole")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+73246d43d3a297a4b8a5fc3f81e548245443c832")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+15c26a4e6b1afd52cc7d1883b1c2c4993f870480")]
 [assembly: System.Reflection.AssemblyProductAttribute("flconsole")]
 [assembly: System.Reflection.AssemblyTitleAttribute("flconsole")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
