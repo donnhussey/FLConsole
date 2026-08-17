@@ -84,7 +84,7 @@ jobs:
         run: dotnet build ${{ env.SOLUTION_PATH }} --configuration Release --no-restore
 
       - name: Run tests
-        run: dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-build
+        run: dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release
 
   publish:
     name: Publish ${{ matrix.runtime }}
@@ -118,8 +118,9 @@ jobs:
           dotnet publish "${APP_PROJECT_PATH}" \
             --configuration Release \
             --runtime "${{ matrix.runtime }}" \
-            --self-contained false \
+            --self-contained true \
             -p:PublishSingleFile=true \
+            -p:EnableCompressionInSingleFile=true \
             --output "${output_dir}"
 
       - name: Create archive
