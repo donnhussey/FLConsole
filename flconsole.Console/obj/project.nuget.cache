@@ -1,8 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "oS2dAhYk0Kc=",
+  "dgSpecHash": "B3IFgZmd7Ew=",
   "success": true,
   "projectFilePath": "/home/runner/work/FLConsole/FLConsole/flconsole.Console/flconsole.Console.csproj",
-  "expectedPackageFiles": [],
+  "expectedPackageFiles": [
+    "/tmp/codeql-scratch-bb4c1873375a5472/dbs/csharp/working/packages/microsoft.netcore.app.ref/10.0.10/microsoft.netcore.app.ref.10.0.10.nupkg.sha512",
+    "/tmp/codeql-scratch-bb4c1873375a5472/dbs/csharp/working/packages/microsoft.aspnetcore.app.ref/10.0.10/microsoft.aspnetcore.app.ref.10.0.10.nupkg.sha512"
+  ],
   "logs": []
 }
