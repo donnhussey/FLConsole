@@ -84,7 +84,7 @@ jobs:
         run: dotnet build ${{ env.SOLUTION_PATH }} --configuration Release --no-restore
 
       - name: Run tests
-        run: dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-build
+        run: dotnet test ${{ env.TEST_PROJECT_PATH }} --configuration Release
 
   publish:
     name: Publish ${{ matrix.runtime }}
@@ -173,10 +173,18 @@ jobs:
 
           if gh release view "${{ needs.prepare.outputs.tag }}" >/dev/null 2>&1; then
             gh release upload "${{ needs.prepare.outputs.tag }}" "${files[@]}" --clobber
+            gh api \
+              --method POST \
+              "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+              -f tag_name="${{ needs.prepare.outputs.tag }}" \
+              -f target_commitish="${GITHUB_SHA}" \
+              --jq '.body' > release-notes.md
+
             edit_args=(
               release edit
               "${{ needs.prepare.outputs.tag }}"
               --title "${{ needs.prepare.outputs.tag }}"
+              --notes-file release-notes.md
             )
 
             if [[ "${{ needs.prepare.outputs.prerelease }}" == "true" ]]; then
