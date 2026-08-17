@@ -327,6 +327,14 @@ Run main app project directly:
 dotnet run --project flconsole/flconsole.csproj
 ```
 
+## Releases
+
+GitHub Actions can build and publish release assets with the workflow at `.github/workflows/release.yml`.
+
+- Push a tag that starts with `v` (for example `v1.2.3`) to build a release automatically.
+- Or run the **Release** workflow manually and provide the tag to create from the selected commit.
+- Each release run builds and tests the solution, then publishes zipped self-contained single-file artifacts for `linux-x64`, `linux-arm64`, `win-x64`, `osx-x64`, and `osx-arm64`.
+
 ## Notes
 
 - Designed for terminal use with a running and configured FLDigi XML-RPC server.

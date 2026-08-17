@@ -1,0 +1,5 @@
+/tmp/flconsole-release-test/linux-arm64/flconsole.pdb
+/tmp/flconsole-release-test/linux-arm64/appsettings.json
+/tmp/flconsole-release-test/linux-arm64/flconsole.Console.pdb
+/tmp/flconsole-release-test/linux-arm64/flconsole.XmlRpc.pdb
+/tmp/flconsole-release-test/linux-arm64/flconsole
