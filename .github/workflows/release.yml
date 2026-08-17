@@ -173,6 +173,17 @@ jobs:
 
           if gh release view "${{ needs.prepare.outputs.tag }}" >/dev/null 2>&1; then
             gh release upload "${{ needs.prepare.outputs.tag }}" "${files[@]}" --clobber
+            edit_args=(
+              release edit
+              "${{ needs.prepare.outputs.tag }}"
+              --title "${{ needs.prepare.outputs.tag }}"
+            )
+
+            if [[ "${{ needs.prepare.outputs.prerelease }}" == "true" ]]; then
+              edit_args+=(--prerelease)
+            fi
+
+            gh "${edit_args[@]}"
             exit 0
           fi
 
