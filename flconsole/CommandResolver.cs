@@ -3,10 +3,12 @@ using flconsole.Console;
 
 namespace flconsole;
 
-public sealed class CommandResolver(IEnumerable<ICommand> commands) : ICommandResolver
+public sealed class CommandResolver(IEnumerable<ICommand> commands, bool txEnabled = false, TxIdentityState? identityState = null) : ICommandResolver
 {
     private readonly IReadOnlyDictionary<string, ICommand> _commands = commands
+        .Where(command => txEnabled || command is not ITxCommand)
         .ToDictionary(command => command.CommandName, StringComparer.OrdinalIgnoreCase);
+    private readonly TxIdentityState _identityState = identityState ?? new();
 
     public ICommand? Resolve(string commandName)
     {
@@ -15,6 +17,7 @@ public sealed class CommandResolver(IEnumerable<ICommand> commands) : ICommandRe
             return null;
         }
 
-        return _commands.GetValueOrDefault(commandName);
+        var command = _commands.GetValueOrDefault(commandName);
+        return command is ITxIdentityRequiredCommand && !_identityState.IsConfigured ? null : command;
     }
 }

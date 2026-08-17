@@ -9,7 +9,10 @@ internal static class Program
     {
         var configuration = BuildConfiguration();
         var serviceCollection = new ServiceCollection()
-            .AddFlConsole(configuration, args.Contains("--debug", StringComparer.OrdinalIgnoreCase));
+            .AddFlConsole(
+                configuration,
+                args.Contains("--debug", StringComparer.OrdinalIgnoreCase),
+                args.Contains("--tx", StringComparer.OrdinalIgnoreCase));
         using var serviceProvider = serviceCollection.BuildServiceProvider();
         var app = serviceProvider.GetRequiredService<FlConsoleApplication>();
         return await app.RunAsync(args, System.Console.Out);

@@ -6,7 +6,7 @@ namespace flconsole;
 public static class ServiceCollectionExtensions
 {
 
-    public static IServiceCollection AddFlConsole(this IServiceCollection services, IConfiguration configuration, bool debug = false)
+    public static IServiceCollection AddFlConsole(this IServiceCollection services, IConfiguration configuration, bool debug = false, bool txEnabled = false)
     {
         var (host, port) = ReadXmlRpcSettings(configuration);
         var connectionSettings = new XmlRpcConnectionSettings(host, port);
@@ -16,9 +16,11 @@ public static class ServiceCollectionExtensions
         var identifyCommandSettings = ReadIdentifyCommandSettings(configuration);
         var frequencySettings = ReadFrequencyCommandSettings(configuration);
         var monitorSettings = ReadMonitorCommandSettings(configuration);
-        var options = new FlConsoleOptions(connectionSettings, consoleSettings, commandMessages, scanCommandSettings, identifyCommandSettings, frequencySettings, monitorSettings);
+        var txSettings = ReadTxCommandSettings(configuration);
+        var options = new FlConsoleOptions(connectionSettings, consoleSettings, commandMessages, scanCommandSettings, identifyCommandSettings, frequencySettings, monitorSettings, txSettings);
 
         services.AddSingleton(options);
+        services.AddSingleton<TxIdentityState>();
         services.AddSingleton(provider => provider.GetRequiredService<FlConsoleOptions>().Connection);
         services.AddSingleton(provider => provider.GetRequiredService<FlConsoleOptions>().Console);
         services.AddSingleton(provider => provider.GetRequiredService<FlConsoleOptions>().Messages);
@@ -26,6 +28,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(provider => provider.GetRequiredService<FlConsoleOptions>().Identify);
         services.AddSingleton(provider => provider.GetRequiredService<FlConsoleOptions>().Frequency);
         services.AddSingleton(provider => provider.GetRequiredService<FlConsoleOptions>().Monitor);
+        services.AddSingleton(provider => provider.GetRequiredService<FlConsoleOptions>().Tx);
         services.AddSingleton<HttpClient>();
         services.AddSingleton(provider =>
         {
@@ -49,11 +52,16 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ICommand, ScanCommand>();
         services.AddSingleton<ICommand, MonitorCommand>();
         services.AddSingleton<ICommand, IdentifyCommand>();
+        if (txEnabled)
+        {
+            services.AddSingleton<ICommand, SetCallCommand>();
+            services.AddSingleton<ICommand, TxCommand>();
+        }
         if (debug)
         {
             services.AddSingleton<ICommand, MethodCallCommand>();
         }
-        services.AddSingleton<ICommandResolver, CommandResolver>();
+        services.AddSingleton<ICommandResolver>(provider => new CommandResolver(provider.GetServices<ICommand>(), txEnabled, provider.GetRequiredService<TxIdentityState>()));
         services.AddSingleton<FlConsoleShellController>();
         services.AddSingleton<FlConsoleApplication>();
 
@@ -111,7 +119,7 @@ public static class ServiceCollectionExtensions
             RequiredMessage(configuration, "UnknownCommandFormat"), RequiredMessage(configuration, "ExecutionErrorFormat"),
             RequiredMessage(configuration, "AdjustUsage"), RequiredMessage(configuration, "AdjustResult"), RequiredMessage(configuration, "SetUsage"), RequiredMessage(configuration, "SetResult"),
             RequiredMessage(configuration, "ScanUsage"), RequiredMessage(configuration, "ScanDone"), RequiredMessage(configuration, "ScanCarrierDebug"), RequiredMessage(configuration, "ScanQualityDebug"), RequiredMessage(configuration, "ScanActivity"),
-            RequiredMessage(configuration, "IdentifyUsage"), RequiredMessage(configuration, "IdentifyCurrentModem"), RequiredMessage(configuration, "IdentifySignalFrequency"), RequiredMessage(configuration, "IdentifyCenteredFrequency"), RequiredMessage(configuration, "IdentifyListening"), RequiredMessage(configuration, "IdentifyRsidResult"), RequiredMessage(configuration, "IdentifyNothing"), RequiredMessage(configuration, "IdentifyNoCandidates"), RequiredMessage(configuration, "IdentifyTopCandidates"), RequiredMessage(configuration, "IdentifyCandidate"), RequiredMessage(configuration, "IdentifySelected"), RequiredMessage(configuration, "IdentifyVerboseCandidate"), RequiredMessage(configuration, "MethodUsage"), RequiredMessage(configuration, "MonitorNullValue"));
+            RequiredMessage(configuration, "IdentifyUsage"), RequiredMessage(configuration, "IdentifyCurrentModem"), RequiredMessage(configuration, "IdentifySignalFrequency"), RequiredMessage(configuration, "IdentifyCenteredFrequency"), RequiredMessage(configuration, "IdentifyListening"), RequiredMessage(configuration, "IdentifyRsidResult"), RequiredMessage(configuration, "IdentifyNothing"), RequiredMessage(configuration, "IdentifyNoCandidates"), RequiredMessage(configuration, "IdentifyTopCandidates"), RequiredMessage(configuration, "IdentifyCandidate"), RequiredMessage(configuration, "IdentifySelected"), RequiredMessage(configuration, "IdentifyVerboseCandidate"), RequiredMessage(configuration, "MethodUsage"), RequiredMessage(configuration, "MonitorNullValue"), RequiredMessage(configuration, "SetCallUsage"), RequiredMessage(configuration, "TxUsage"), RequiredMessage(configuration, "TxReady"), RequiredMessage(configuration, "TxLocked"), RequiredMessage(configuration, "TxStarted"), RequiredMessage(configuration, "TxDone"));
     }
 
     private static FrequencyCommandSettings ReadFrequencyCommandSettings(IConfiguration configuration) => new(
@@ -122,6 +130,9 @@ public static class ServiceCollectionExtensions
 
     private static MonitorCommandSettings ReadMonitorCommandSettings(IConfiguration configuration) => new(
         RequiredInt(configuration, "FlConsole:Monitor:PollIntervalMilliseconds"));
+
+    private static TxCommandSettings ReadTxCommandSettings(IConfiguration configuration) => new(
+        RequiredInt(configuration, "FlConsole:Tx:PollIntervalMilliseconds"));
 
     private static string RequiredMessage(IConfiguration configuration, string name) => RequiredString(configuration, $"FlConsole:Messages:{name}");
     private static string RequiredString(IConfiguration configuration, string key) => configuration[key] ?? throw new InvalidOperationException($"Missing required configuration: {key}");

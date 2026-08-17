@@ -28,10 +28,16 @@ public sealed record CommandMessages(
     string IdentifySelected,
     string IdentifyVerboseCandidate,
     string MethodUsage,
-    string MonitorNullValue)
+    string MonitorNullValue,
+    string SetCallUsage,
+    string TxUsage,
+    string TxReady,
+    string TxLocked,
+    string TxStarted,
+    string TxDone)
 {
     public static CommandMessages Defaults => new(
-        "Commands:\n  clear                                Clear the console output\n  method <method-name> [arg1 arg2 ...]  Call an XML-RPC method\n  adjust <frequency>  Move to an exact frequency using the current 3 kHz band when possible\n  identify [all] [listen-seconds] [top-candidates] [v]  Center current signal and identify likely modem\n  scan [quality-threshold]  Scan current 3 kHz segment and report activity\n  set <frequency> [modem-name] [rig-mode]  Set frequency, modem, and rig mode\n  help                                 Show this help text\n  quit                                Exit the shell\n\nExamples:\n  clear\n  method system.listMethods\n  adjust 14074000\n  identify 5 5 v\n  identify all 5 5 v\n  scan\n  scan 5\n  set 14074000 Olivia USB\n",
+        "Commands:\n  clear                                Clear the console output\n  method <method-name> [arg1 arg2 ...]  Call an XML-RPC method\n  adjust <frequency>  Move to an exact frequency using the current 3 kHz band when possible\n  identify [all] [listen-seconds] [top-candidates] [v]  Center current signal and identify likely modem\n  scan [quality-threshold]  Scan current 3 kHz segment and report activity\n  set <frequency> [modem-name] [rig-mode]  Set frequency, modem, and rig mode\n  setcall <US-callsign> <US-Maidenhead-locator>  Set TX identity (no transmission)\n  tx <text>                           Transmit text using the configured identity\n  help                                 Show this help text\n  quit                                Exit the shell\n\nExamples:\n  clear\n  method system.listMethods\n  adjust 14074000\n  identify 5 5 v\n  identify all 5 5 v\n  scan\n  scan 5\n  set 14074000 Olivia USB\n  setcall W1ABC FN31\n  tx hello from flconsole\n",
             "Type 'help' for commands, or 'quit' to exit.",
             "Error: {0}",
             "Unknown command: {0}. Type 'help' for commands.",
@@ -58,5 +64,11 @@ public sealed record CommandMessages(
         "Selected modem: {0}",
         "Verbose candidate: {0} quality={1} text={2} score={3}",
         "Usage: method <method-name> [arg1 arg2 ...]",
-        "null");
+        "null",
+        "Usage: setcall <US-callsign> <US-Maidenhead-locator>",
+        "Usage: tx <text>",
+        "TX identity accepted (transmission not started): callsign={0}, location={1}",
+        "Transmitter is already locked.",
+        "Transmitting....",
+        "...done!");
 }

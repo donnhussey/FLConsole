@@ -9,3 +9,5 @@ public sealed record FrequencyCommandSettings(
     int SettleDelayMilliseconds);
 
 public sealed record MonitorCommandSettings(int PollIntervalMilliseconds);
+
+public sealed record TxCommandSettings(int PollIntervalMilliseconds);

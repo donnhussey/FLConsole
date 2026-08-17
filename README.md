@@ -44,6 +44,14 @@ Show help:
 dotnet run -- --help
 ```
 
+Enable transmit-capable commands explicitly:
+
+```bash
+dotnet run -- --tx
+```
+
+Without `--tx`, commands marked as transmit-capable are not available. The flag is opt-in and has no effect on receive-only commands.
+
 Run with custom endpoint via config override (edit `flconsole/appsettings.json` first), then start:
 
 ```bash
@@ -193,6 +201,12 @@ Scan configuration:
   - Restores prior modem, dial frequency, and carrier offset after completion.
 - `monitor`
   - Poll `rx.get_data` once per second and print decoded RX text.
+- `setcall <US-callsign> <US-Maidenhead-locator>`
+  - Requires startup with `--tx`.
+  - Validates the callsign and US-territory Maidenhead locator. Successful execution enables identity-dependent TX commands; it does not transmit.
+- `tx <text>`
+  - Requires startup with `--tx` and a successful `setcall` first.
+  - Refuses to start if FLDigi's transmit lock is already set, transmits the supplied text followed by `de <callsign>`, waits for the lock to clear, and clears the TX buffer.
 
 - Note: `set` tunes to `requested frequency - 1500` with modem carrier `1500`. `identify` recenters the currently selected signal by using current dial + carrier, then setting dial to `signal - 1500` and carrier to `1500`. `scan` sweeps in-band carriers and then restores prior rig/modem state.
 

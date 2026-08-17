@@ -7,4 +7,5 @@ internal sealed record FlConsoleOptions(
     ScanCommandSettings Scan,
     IdentifyCommandSettings Identify,
     FrequencyCommandSettings Frequency,
-    MonitorCommandSettings Monitor);
+    MonitorCommandSettings Monitor,
+    TxCommandSettings Tx);

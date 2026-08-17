@@ -57,6 +57,100 @@ public class CommandsTests
         Assert.False(new IdentifyCommand(CreateClientReturning("ok")).Repeat);
         Assert.Equal(TimeSpan.Zero, new IdentifyCommand(CreateClientReturning("ok")).RepeatInterval);
         Assert.False(new IdentifyCommand(CreateClientReturning("ok")).StopsShell);
+
+        Assert.Equal("setcall", new SetCallCommand().CommandName);
+        Assert.False(new SetCallCommand().Repeat);
+        Assert.Equal(TimeSpan.Zero, new SetCallCommand().RepeatInterval);
+        Assert.False(new SetCallCommand().StopsShell);
+    }
+
+    [Theory]
+    [InlineData("W1ABC")]
+    [InlineData("AA1AA")]
+    [InlineData("n0cal")]
+    public void SetCallCommand_AcceptsUsCallsigns(string callsign)
+    {
+        Assert.True(SetCallCommand.IsUsCallsign(callsign));
+    }
+
+    [Theory]
+    [InlineData("G0ABC")]
+    [InlineData("WABC")]
+    [InlineData("W1ABCD")]
+    public void SetCallCommand_RejectsNonUsCallsigns(string callsign)
+    {
+        Assert.False(SetCallCommand.IsUsCallsign(callsign));
+    }
+
+    [Theory]
+    [InlineData("FN31")]
+    [InlineData("DM79AA")]
+    [InlineData("EM48")]
+    public void SetCallCommand_AcceptsUsMaidenheadLocators(string locator)
+    {
+        Assert.True(SetCallCommand.IsUsMaidenheadLocator(locator));
+    }
+
+    [Theory]
+    [InlineData("JN58")]
+    [InlineData("QF56")]
+    [InlineData("FN")]
+    [InlineData("FN3100")]
+    public void SetCallCommand_RejectsNonUsMaidenheadLocators(string locator)
+    {
+        Assert.False(SetCallCommand.IsUsMaidenheadLocator(locator));
+    }
+
+    [Fact]
+    public async Task SetCallCommand_ValidatesBeforeAnyRadioCall()
+    {
+        var command = new SetCallCommand();
+
+        var text = await ReadTextAsync(await command.ExecuteAsync(["W1ABC", "JN58"]));
+
+        Assert.Equal("Usage: setcall <US-callsign> <US-Maidenhead-locator>", text);
+    }
+
+    [Fact]
+    public async Task TxCommand_TransmitsTextAndClearsBufferAfterLockReleases()
+    {
+        var handler = new QueueResponseHandler([
+            CreateXmlRpcBooleanResponse(false),
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcResponseWithoutParams(),
+            CreateXmlRpcBooleanResponse(true),
+            CreateXmlRpcBooleanResponse(false),
+            CreateXmlRpcResponseWithoutParams()
+        ]);
+        var identityState = new TxIdentityState();
+        identityState.Set("W1ABC", "FN31");
+        var command = new TxCommand(CreateClient(handler), identityState, new TxCommandSettings(1));
+
+        var text = await ReadTextAsync(await command.ExecuteAsync(["hello", "from", "fldigi"]));
+
+        Assert.Equal("Transmitting....\nhello from fldigi de W1ABC\n...done!\n", text);
+        Assert.Equal(7, handler.RequestBodies.Count);
+        Assert.Contains("<methodName>main.get_lock</methodName>", handler.RequestBodies[0]);
+        Assert.Contains("<methodName>text.clear_tx</methodName>", handler.RequestBodies[1]);
+        Assert.Contains("<methodName>text.add_tx</methodName>", handler.RequestBodies[2]);
+        Assert.Contains("hello from fldigi de W1ABC", handler.RequestBodies[2]);
+        Assert.Contains("<methodName>main.tx</methodName>", handler.RequestBodies[3]);
+        Assert.Contains("<methodName>text.clear_tx</methodName>", handler.RequestBodies[6]);
+    }
+
+    [Fact]
+    public async Task TxCommand_RefusesToStartWhenTransmitIsLocked()
+    {
+        var handler = new QueueResponseHandler([CreateXmlRpcBooleanResponse(true)]);
+        var identityState = new TxIdentityState();
+        identityState.Set("W1ABC", "FN31");
+        var command = new TxCommand(CreateClient(handler), identityState, new TxCommandSettings(1));
+
+        var text = await ReadTextAsync(await command.ExecuteAsync(["hello"]));
+
+        Assert.Equal("Transmitter is already locked.", text);
+        Assert.Single(handler.RequestBodies);
     }
 
     [Fact]
